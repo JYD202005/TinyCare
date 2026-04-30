@@ -25,6 +25,8 @@ export default function LoginScreen() {
 
   const handleLogin = () => {
     console.log('Login:', { email, password });
+    // Navegar directamente al home sin validación por ahora
+    router.replace('/(tabs)/home');
   };
 
   return (

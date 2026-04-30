@@ -36,6 +36,8 @@ export default function RegisterScreen() {
       password,
       acceptTerms,
     });
+    // Navegar directamente al home sin validación por ahora
+    router.replace('/(tabs)/home');
   };
 
   return (

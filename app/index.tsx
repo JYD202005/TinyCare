@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 
 export default function Index() {
-  // Redirect to the login screen by default
+  // TODO: Add auth check — redirect to login if not authenticated
   return <Redirect href="/(auth)/login" />;
 }
