@@ -22,6 +22,19 @@ export const TC = {
   textBody: '#6B5558',        // warm medium brown (body)
   textMuted: '#A8898C',       // warm light brown (placeholders/secondary)
 
+  /* ── Vital Signs ── */
+  vitalHeart: '#5CB8A5',      // teal-green for heart rate
+  vitalOxygen: '#89BDE5',     // soft blue for SpO2
+  vitalTemp: '#F4847E',       // coral for temperature
+  vitalActivity: '#B39DDB',   // lavender for activity/gyro
+  trackBg: '#F0EDF5',         // soft gray for ring backgrounds
+
+  /* ── Navigation Bar ── */
+  navBg: '#FFFFFF',            // white bar (shadow differentiates from bg)
+  navActive: '#5CB8A5',        // teal-green active indicator
+  navInactive: '#B8A0A3',      // warm muted for inactive icons
+  navShadow: '#D4B5B8',        // warm pink shadow for bar depth
+
   /* ── Misc ── */
   shadow: '#F4847E',          // pink shadow for buttons
   checkmark: '#F4847E',       // checked state
