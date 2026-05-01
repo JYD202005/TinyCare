@@ -1,50 +1,57 @@
-# Welcome to your Expo app 👋
+Listed directory TinyCare
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Para seguir usando la comodidad de escanear un **código QR** sin tener que conectar tu teléfono por cable, necesitamos compilar tu aplicación en los servidores de Expo en la nube (usando **EAS Build**).
 
-## Get started
+Al compilarla en la nube, Expo te dará un código QR para que descargues tu propia aplicación personalizada de desarrollo (que ya incluirá el motor de base de datos de WatermelonDB).
 
-1. Install dependencies
+Sigue estos pasos en tu terminal:
 
-   ```bash
-   npm install
-   ```
+### 1. Instalar la herramienta de Expo Application Services (EAS)
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Si aún no la tienes, instala la CLI globalmente:
 
 ```bash
-npm run reset-project
+npm install -g eas-cli
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Iniciar sesión y configurar tu proyecto
 
-## Learn more
+Inicia sesión con tu cuenta de Expo (la misma que usas en la app de tu teléfono):
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+eas login
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Luego, inicializa la configuración de EAS en tu proyecto (si te pregunta qué plataformas, elige "All" o "Android"):
 
-## Join the community
+```bash
+eas build:configure
+```
 
-Join our community of developers creating universal apps.
+### 3. Mandar a compilar tu app a la nube
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Ejecuta el siguiente comando para iniciar la compilación de tu "Development Build" para Android:
+
+```bash
+eas build --profile development --platform android
+```
+
+> _Nota: Este proceso puede tardar entre 10 y 15 minutos porque se está compilando en los servidores de Expo._
+
+### 4. Escanear e Instalar
+
+Cuando la compilación termine, **te aparecerá un código QR en la terminal**.
+
+1. Escanea ese código QR con la cámara de tu celular.
+2. Descarga e instala el archivo `.apk`.
+3. Ahora tendrás una nueva aplicación instalada en tu teléfono llamada **"TinyCare"**.
+
+### 5. Cómo encender tu servidor a partir de ahora
+
+Ya no usarás la app de "Expo Go". Para conectarte a tu código local, abre tu nueva app "TinyCare" instalada, y en tu terminal ejecuta:
+
+```bash
+npx expo start --dev-client
+```
+
+Escanea el código QR que te da este comando **desde dentro de tu nueva app TinyCare**, ¡y listo! Todo funcionará perfectamente de forma inalámbrica.
