@@ -28,6 +28,17 @@
     },
     "plugins": [
       ["@lovesworking/watermelondb-expo-plugin-sdk-52-plus"],
+      [
+        "@config-plugins/react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "modes": [
+            "peripheral",
+            "central"
+          ],
+          "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to bluetooth devices"
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
