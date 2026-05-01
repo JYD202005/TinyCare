@@ -39,7 +39,9 @@
           "dark": {
             "backgroundColor": "#000000"
           }
-        },
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
@@ -48,8 +50,7 @@
             }
           }
         }
-      ],
-      "@morrowdigital/watermelondb-expo-plugin"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
