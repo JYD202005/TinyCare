@@ -9,6 +9,7 @@ import {
   ScrollView,
   Image,
   Switch,
+  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,7 @@ import { TC } from '../components/theme';
 interface Bebe {
   id: number;
   nombre: string;
+  avatar: string;
   fechaNacimiento: string;
   peso: string;
   esPrematuro: boolean;
@@ -32,11 +34,13 @@ interface Bebe {
   mostrarAvanzado?: boolean;
 }
 
+const DEFAULT_EMOJIS = ['❤️', '✨', '🌟', '🍼', '🧸'];
+
 export default function Onboarding() {
   const database = useDatabase();
   const [step, setStep] = useState(1);
   const [bebes, setBebes] = useState<Bebe[]>([{ 
-    id: 1, nombre: '', fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, mostrarAvanzado: false 
+    id: 1, nombre: '', avatar: '❤️', fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, mostrarAvanzado: false 
   }]);
   const [showDatePicker, setShowDatePicker] = useState<number | null>(null);
 
@@ -67,7 +71,8 @@ export default function Onboarding() {
   };
 
   const agregarBebe = () => {
-    setBebes([...bebes, { id: Date.now(), nombre: '', fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, mostrarAvanzado: false }]);
+    const nextEmoji = DEFAULT_EMOJIS[bebes.length % DEFAULT_EMOJIS.length];
+    setBebes([...bebes, { id: Date.now(), nombre: '', avatar: nextEmoji, fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, mostrarAvanzado: false }]);
   };
 
   const quitarBebe = (id: number) => {
@@ -88,6 +93,7 @@ export default function Onboarding() {
 
           const perfil = await database.get('perfiles').create((p: any) => {
             p.nombreIdentificador = bebe.nombre;
+            p.avatar = bebe.avatar;
             p.idUsuarioRemote = 'local';
           });
 
@@ -102,7 +108,7 @@ export default function Onboarding() {
           await database.get('datos_personales').create((d: any) => {
             d.idPerfil = perfil.id;
             d.primerNombre = bebe.nombre;
-            d.sexo = 'Femenino';
+            d.sexo = 'No Especificado';
             d.fechaNacimiento = fechaParsed.getTime();
           });
 
@@ -187,6 +193,21 @@ export default function Onboarding() {
                       )}
                     </View>
                     
+                    <Text style={styles.avatarPrompt}>Elige tu propio Emoji:</Text>
+                    <View style={[styles.avatarRow, { justifyContent: 'flex-start', paddingHorizontal: 0, borderWidth: 0, backgroundColor: 'transparent' }]}>
+                      <View style={[styles.avatarBtn, styles.avatarBtnActive, { width: 56, height: 56, borderRadius: 28 }]}>
+                        <TextInput
+                          style={{ fontSize: 32, textAlign: 'center' }}
+                          value={bebe.avatar}
+                          onChangeText={(t) => actualizarBebe(bebe.id, 'avatar', t)}
+                          maxLength={4} // Allows complex emojis
+                        />
+                      </View>
+                      <Text style={{ flex: 1, marginLeft: 16, color: TC.textMuted, fontSize: 13, alignSelf: 'center' }}>
+                        Toca el círculo para abrir tu teclado y elegir el ícono del bebé.
+                      </Text>
+                    </View>
+
                     <PillInput
                       icon="person-outline"
                       placeholder="Nombre o apodo"
@@ -375,6 +396,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: TC.accent,
     letterSpacing: 1,
+  },
+  avatarPrompt: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TC.textMuted,
+    marginBottom: 8,
+  },
+  avatarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  avatarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: TC.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarBtnActive: {
+    backgroundColor: TC.accentLight,
+    borderWidth: 2,
+    borderColor: TC.accent,
+  },
+  avatarEmoji: {
+    fontSize: 20,
   },
   addBtn: {
     flexDirection: 'row',

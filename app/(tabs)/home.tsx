@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import DashboardCard, {
   VITALS,
   VitalType,
 } from "../../components/DashboardCard";
+import { database } from "../../src/database";
+import { Perfil } from "../../src/database/models";
+import { useFocusEffect } from "@react-navigation/native";
 
 // ─── Trend Data (mock per vital) ─────────────────────────────────────────────
 
@@ -170,8 +173,39 @@ const HistoryCard: React.FC<{ vital: VitalType; color: string }> = ({
 // ─── Home Screen ─────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
+  const [babies, setBabies] = useState<{ id: string, name: string, emoji: string, connected: boolean }[]>([
+    { id: 'loading', name: 'Cargando...', emoji: '⏳', connected: false }
+  ]);
+  const [activeBabyIndex, setActiveBabyIndex] = useState(0);
+  const activeBaby = babies[activeBabyIndex] || babies[0];
+  
   const [activeVital, setActiveVital] = useState<VitalType>("heart");
   const vitalConfig = VITALS.find((v) => v.key === activeVital)!;
+
+  // Re-suscribirse cada vez que la pantalla recibe foco
+  // Esto garantiza que cualquier cambio en edit-baby se refleje al regresar
+  useFocusEffect(
+    useCallback(() => {
+      const perfilesCollection = database.collections.get<Perfil>('perfiles');
+      const subscription = perfilesCollection.query().observe().subscribe((perfiles) => {
+        if (perfiles.length > 0) {
+          const loadedBabies = perfiles.map((p) => ({
+            id: p.id,
+            name: p.nombreIdentificador || 'Bebé',
+            emoji: p.avatar || '👶🏻',
+            connected: false,
+          }));
+          setBabies(loadedBabies);
+          setActiveBabyIndex(prev => prev >= loadedBabies.length ? 0 : prev);
+        } else {
+          setBabies([{ id: 'empty', name: 'Sin Perfil', emoji: '👶', connected: false }]);
+        }
+      });
+
+      // Cleanup al perder foco o desmontar
+      return () => subscription.unsubscribe();
+    }, [])
+  );
 
   return (
     <View style={styles.root}>
@@ -182,15 +216,58 @@ export default function HomeScreen() {
       >
         {/* ── Header ── */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={styles.babyName}>Panel de Salud</Text>
-            <Text style={styles.appTitle}>Oliver 👶🏻</Text>
+            <Text style={styles.appTitle}>{activeBaby.name} {activeBaby.emoji}</Text>
           </View>
-          <TouchableOpacity style={styles.notifBtn} activeOpacity={0.7}>
-            <Ionicons name="notifications-outline" size={24} color={TC.textDark} />
-            <View style={styles.notifBadge} />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <View style={styles.dotsContainer}>
+              {babies.length > 1 && babies.map((b, index) => (
+                <TouchableOpacity 
+                  key={index}
+                  activeOpacity={0.8}
+                  onPress={() => setActiveBabyIndex(index)}
+                  style={[styles.dot, index === activeBabyIndex && styles.dotActive]}
+                >
+                  <Text style={[styles.dotEmoji, index === activeBabyIndex && styles.dotEmojiActive]}>{b.emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.notifBtn} activeOpacity={0.7}>
+              <Ionicons name="notifications-outline" size={24} color={TC.textDark} />
+              <View style={styles.notifBadge} />
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {/* ── Bluetooth Banner ── */}
+        {!activeBaby.connected ? (
+          <View style={styles.bleBannerDisconnected}>
+             <View style={styles.bleIconBoxDisconnected}>
+               <Ionicons name="bluetooth" size={20} color="#FFF" />
+             </View>
+             <View style={styles.bleTextCol}>
+               <Text style={styles.bleTitle}>Sensor Desconectado</Text>
+               <Text style={styles.bleSub}>Vincular monitor para {activeBaby.name}</Text>
+             </View>
+             <TouchableOpacity style={styles.bleBtn} activeOpacity={0.8}>
+               <Text style={styles.bleBtnText}>Vincular</Text>
+             </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.bleBannerConnected}>
+             <View style={styles.bleIconBoxConnected}>
+               <Ionicons name="bluetooth" size={20} color={TC.vitalHeart} />
+             </View>
+             <View style={styles.bleTextCol}>
+               <Text style={styles.bleTitleConnected}>Monitor Conectado</Text>
+               <Text style={styles.bleSub}>Recibiendo datos de {activeBaby.name}</Text>
+             </View>
+             <TouchableOpacity style={styles.bleBtnOutline} activeOpacity={0.8}>
+               <Text style={styles.bleBtnOutlineText}>Ajustes</Text>
+             </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Dashboard Card (ring + inline stats) ── */}
         <View style={styles.mainCardContainer}>
@@ -249,9 +326,47 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-end", // Align to bottom so title and button sit nicely
     marginBottom: 4,
     paddingHorizontal: 4,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    alignItems: "flex-end",
+    gap: 12,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginRight: 4,
+    marginBottom: 6,
+    alignItems: 'center',
+  },
+  dot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#FFE8A1', // Light yellow background
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.5,
+  },
+  dotActive: {
+    backgroundColor: '#FFC107', // Strong yellow
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: TC.textDark, // Black/dark border for the active state
+    opacity: 1,
+  },
+  dotEmoji: {
+    fontSize: 14,
+  },
+  dotEmojiActive: {
+    fontSize: 16,
   },
   babyName: {
     fontSize: 13,
@@ -292,6 +407,96 @@ const styles = StyleSheet.create({
     backgroundColor: TC.vitalTemp,
     borderWidth: 2,
     borderColor: TC.card,
+  },
+
+  /* Bluetooth Banners */
+  bleBannerDisconnected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F0', // Soft red
+    borderRadius: 24,
+    padding: 16,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: '#FDD8D8',
+    borderCurve: "continuous" as any,
+  },
+  bleIconBoxDisconnected: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#F4847E', // Theme accent coral
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    borderCurve: "continuous" as any,
+  },
+  bleBannerConnected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FAF8', // Soft green
+    borderRadius: 24,
+    padding: 16,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: '#D2EFE9',
+    borderCurve: "continuous" as any,
+  },
+  bleIconBoxConnected: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#E0F4F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    borderCurve: "continuous" as any,
+  },
+  bleTextCol: {
+    flex: 1,
+  },
+  bleTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#D32F2F',
+    letterSpacing: -0.3,
+    marginBottom: 2,
+  },
+  bleTitleConnected: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2E7D32',
+    letterSpacing: -0.3,
+    marginBottom: 2,
+  },
+  bleSub: {
+    fontSize: 13,
+    color: TC.textBody,
+    fontWeight: '500',
+  },
+  bleBtn: {
+    backgroundColor: '#F4847E',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  bleBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  bleBtnOutline: {
+    backgroundColor: '#FFF',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#D2EFE9',
+  },
+  bleBtnOutlineText: {
+    color: '#2E7D32',
+    fontWeight: '700',
+    fontSize: 14,
   },
 
   mainCardContainer: {

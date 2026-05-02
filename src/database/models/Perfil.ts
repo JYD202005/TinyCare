@@ -6,6 +6,8 @@ export default class Perfil extends Model {
 
   @text('id_usuario_remote') idUsuarioRemote: string
   @text('nombre_identificador') nombreIdentificador: string
+  @text('avatar') avatar?: string
+
   @readonly @date('created_at') createdAt: number
   @readonly @date('updated_at') updatedAt: number
   @date('deleted_at') deletedAt?: number

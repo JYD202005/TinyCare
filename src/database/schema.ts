@@ -9,6 +9,7 @@ export const babyMonitorSchema = appSchema({
       columns: [
         { name: 'id_usuario_remote', type: 'string', isIndexed: true }, // ID de Supabase Auth
         { name: 'nombre_identificador', type: 'string' },
+        { name: 'avatar', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true }, // Soft Delete
@@ -44,6 +45,11 @@ export const babyMonitorSchema = appSchema({
         { name: 'sospecha_cardiopatia', type: 'boolean' },
         { name: 'dias_de_vida', type: 'number', isOptional: true },
         { name: 'edad_gestacional_semanas', type: 'number', isOptional: true },
+        // Detalles de salud extra
+        { name: 'tiene_alergias', type: 'boolean', isOptional: true },
+        { name: 'detalles_alergias', type: 'string', isOptional: true },
+        { name: 'tiene_complicaciones', type: 'boolean', isOptional: true },
+        { name: 'detalles_complicaciones', type: 'string', isOptional: true },
         { name: 'deleted_at', type: 'number', isOptional: true },
       ]
     }),

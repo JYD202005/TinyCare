@@ -15,5 +15,11 @@ export default class SaludContexto extends Model {
   @field('sospecha_cardiopatia') sospechaCardiopatia: boolean
   @numField('dias_de_vida') diasDeVida?: number
   @numField('edad_gestacional_semanas') edadGestacionalSemanas?: number
+  
+  @field('tiene_alergias') tieneAlergias?: boolean
+  @text('detalles_alergias') detallesAlergias?: string
+  @field('tiene_complicaciones') tieneComplicaciones?: boolean
+  @text('detalles_complicaciones') detallesComplicaciones?: string
+
   @date('deleted_at') deletedAt?: number
 }
