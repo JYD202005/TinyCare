@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "tinycare",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true
     },
@@ -65,8 +65,7 @@
             }
           }
         }
-      ],
-      "@react-native-community/datetimepicker"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

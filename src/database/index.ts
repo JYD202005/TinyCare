@@ -7,8 +7,10 @@ import { models } from './models'
 // Definimos el adaptador para entorno nativo (iOS/Android)
 const adapter = new SQLiteAdapter({
   schema: babyMonitorSchema,
-  // dbName: 'TinyCareDB', // Opcional
-  jsi: true, // Mejor rendimiento en Android/iOS
+  // JSI disabled: incompatible with New Architecture (Fabric) in Hermes —
+  // causes "Cannot assign to read-only property 'NONE'" crash at startup.
+  // Falls back to the async bridge, which is stable on all platforms.
+  jsi: false,
   onSetUpError: (error: any) => {
     console.error('Error al configurar la base de datos SQLite:', error)
   },

@@ -9,17 +9,19 @@ import {
   ScrollView,
   Image,
   Switch,
-  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDatabase } from '@/src/database/context';
-import DateTimePicker from '@react-native-community/datetimepicker';
+// Native DateTimePicker removed: @react-native-community/datetimepicker@8.4.4 crashes
+// on Hermes (RN 0.81+) because it mutates a frozen global Event prototype.
+// Replaced with a pure-RN formatted text input.
 
 import WaveHeader from '../components/WaveHeader';
 import PillInput from '../components/PillInput';
 import WebDatePicker from '../components/WebDatePicker';
 import GradientButton from '../components/GradientButton';
+import InlineDatePicker from '../components/InlineDatePicker';
 import { TC } from '../components/theme';
 
 interface Bebe {
@@ -36,39 +38,23 @@ interface Bebe {
 
 const DEFAULT_EMOJIS = ['❤️', '✨', '🌟', '🍼', '🧸'];
 
+const EMOJI_CATEGORIES = [
+  { label: '👶 Bebés',     emojis: ['👶','👶🏻','👶🏼','👶🏽','👶🏾','👶🏿','🍼','🐣','🐤','🦄','🦁','🦋'] },
+  { label: '♥️ Corazones', emojis: ['❤️','🧡','💛','💚','💙','💜','🤍','🤎','🖤','💗','💘','💓','💕','💖','💞','💟','♥️','❣️'] },
+  { label: '⭐ Estrellas', emojis: ['⭐','🌟','✨','💫','🌈','☀️','🌚','🌛','🌜','🌙','🪐','🔮'] },
+  { label: '🌼 Naturaleza',emojis: ['🌼','🌸','🌺','🌷','🌶️','🌱','🌿','🍀','🍎','🍓','🍇','🍋','🍑','🥕','🌻'] },
+  { label: '🐾 Animales',  emojis: ['🐱','🐶','🐇','🐻','🐼','🐨','🦧','🐬','🦁','🦎','🐢','🐥','🦜','🐮','🦓'] },
+  { label: '🌟 Otros',     emojis: ['🛡️','🌈','🌍','🌞','🤘','👊','💪','🎉','🎁','🔔','📱','💊','🩺','🚑','⚕️'] },
+];
+
 export default function Onboarding() {
   const database = useDatabase();
   const [step, setStep] = useState(1);
   const [bebes, setBebes] = useState<Bebe[]>([{ 
     id: 1, nombre: '', avatar: '❤️', fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, mostrarAvanzado: false 
   }]);
-  const [showDatePicker, setShowDatePicker] = useState<number | null>(null);
-
-  const getDatePickerValue = (dateStr: string) => {
-    if (!dateStr) return new Date();
-    const parts = dateStr.split('/');
-    if (parts.length === 3) {
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const year = parseInt(parts[2], 10);
-      return new Date(year, month, day);
-    }
-    return new Date();
-  };
-
-  const handleDateChange = (event: any, selectedDate: Date | undefined, bebeId: number) => {
-    if (Platform.OS === 'android') {
-      setShowDatePicker(null);
-    }
-    if (event.type === 'set' && selectedDate) {
-      const day = String(selectedDate.getDate()).padStart(2, '0');
-      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const year = selectedDate.getFullYear();
-      actualizarBebe(bebeId, 'fechaNacimiento', `${day}/${month}/${year}`);
-    } else if (event.type === 'dismissed') {
-      setShowDatePicker(null);
-    }
-  };
+  // No native date picker state needed — using custom InlineDatePicker wheel
+  const [showEmojiPickerId, setShowEmojiPickerId] = useState<number | null>(null);
 
   const agregarBebe = () => {
     const nextEmoji = DEFAULT_EMOJIS[bebes.length % DEFAULT_EMOJIS.length];
@@ -193,20 +179,71 @@ export default function Onboarding() {
                       )}
                     </View>
                     
-                    <Text style={styles.avatarPrompt}>Elige tu propio Emoji:</Text>
-                    <View style={[styles.avatarRow, { justifyContent: 'flex-start', paddingHorizontal: 0, borderWidth: 0, backgroundColor: 'transparent' }]}>
-                      <View style={[styles.avatarBtn, styles.avatarBtnActive, { width: 56, height: 56, borderRadius: 28 }]}>
-                        <TextInput
-                          style={{ fontSize: 32, textAlign: 'center' }}
-                          value={bebe.avatar}
-                          onChangeText={(t) => actualizarBebe(bebe.id, 'avatar', t)}
-                          maxLength={4} // Allows complex emojis
-                        />
+                    {/* ── Emoji Picker (mismo que edit-baby) ── */}
+                    <TouchableOpacity
+                      onPress={() => setShowEmojiPickerId(showEmojiPickerId === bebe.id ? null : bebe.id)}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 16,
+                        backgroundColor: '#F8FAFC', borderRadius: 16, padding: 14,
+                        borderWidth: 1.5,
+                        borderColor: showEmojiPickerId === bebe.id ? TC.accent : TC.inputBorder,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <View style={{
+                        width: 56, height: 56, borderRadius: 28,
+                        backgroundColor: '#FFF5F7', borderWidth: 2, borderColor: TC.accent,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Text style={{ fontSize: 32 }}>{bebe.avatar || '❤️'}</Text>
                       </View>
-                      <Text style={{ flex: 1, marginLeft: 16, color: TC.textMuted, fontSize: 13, alignSelf: 'center' }}>
-                        Toca el círculo para abrir tu teclado y elegir el ícono del bebé.
-                      </Text>
-                    </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontWeight: '700', color: TC.textDark, fontSize: 14 }}>Icono del bebé</Text>
+                        <Text style={{ color: TC.textMuted, fontSize: 12, marginTop: 2 }}>
+                          {showEmojiPickerId === bebe.id ? 'Toca un emoji para seleccionarlo' : 'Toca para abrir el selector'}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={showEmojiPickerId === bebe.id ? 'chevron-up' : 'chevron-down'}
+                        size={20} color={TC.textMuted}
+                      />
+                    </TouchableOpacity>
+
+                    {showEmojiPickerId === bebe.id && (
+                      <View style={{
+                        marginBottom: 12, backgroundColor: '#F8FAFC',
+                        borderRadius: 16, padding: 12,
+                        borderWidth: 1, borderColor: TC.inputBorder,
+                      }}>
+                        {EMOJI_CATEGORIES.map(cat => (
+                          <View key={cat.label} style={{ marginBottom: 12 }}>
+                            <Text style={{ fontSize: 11, color: TC.textMuted, fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 }}>
+                              {cat.label.toUpperCase()}
+                            </Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                              {cat.emojis.map(emoji => (
+                                <TouchableOpacity
+                                  key={emoji}
+                                  onPress={() => {
+                                    actualizarBebe(bebe.id, 'avatar', emoji);
+                                    setShowEmojiPickerId(null);
+                                  }}
+                                  style={{
+                                    width: 44, height: 44, borderRadius: 22,
+                                    alignItems: 'center', justifyContent: 'center',
+                                    borderWidth: 2,
+                                    backgroundColor: bebe.avatar === emoji ? '#FFF5F7' : '#FFF',
+                                    borderColor: bebe.avatar === emoji ? TC.accent : TC.inputBorder,
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 24 }}>{emoji}</Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
 
                     <PillInput
                       icon="person-outline"
@@ -222,29 +259,10 @@ export default function Onboarding() {
                         onChange={(t) => actualizarBebe(bebe.id, 'fechaNacimiento', t)}
                       />
                     ) : (
-                      <>
-                        <TouchableOpacity onPress={() => setShowDatePicker(bebe.id)}>
-                          <View style={{ pointerEvents: 'none' }}>
-                            <PillInput
-                              icon="calendar-outline"
-                              placeholder="Fecha de nac. (DD/MM/AAAA)"
-                              value={bebe.fechaNacimiento}
-                              editable={false}
-                              containerStyle={styles.inputSpacing}
-                            />
-                          </View>
-                        </TouchableOpacity>
-
-                        {showDatePicker === bebe.id && (
-                          <DateTimePicker
-                            value={getDatePickerValue(bebe.fechaNacimiento)}
-                            mode="date"
-                            display="default"
-                            maximumDate={new Date()}
-                            onChange={(event, date) => handleDateChange(event, date, bebe.id)}
-                          />
-                        )}
-                      </>
+                      <InlineDatePicker
+                        value={bebe.fechaNacimiento}
+                        onChange={(t) => actualizarBebe(bebe.id, 'fechaNacimiento', t)}
+                      />
                     )}
 
                     <PillInput
@@ -397,33 +415,7 @@ const styles = StyleSheet.create({
     color: TC.accent,
     letterSpacing: 1,
   },
-  avatarPrompt: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: TC.textMuted,
-    marginBottom: 8,
-  },
-  avatarRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  avatarBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: TC.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarBtnActive: {
-    backgroundColor: TC.accentLight,
-    borderWidth: 2,
-    borderColor: TC.accent,
-  },
-  avatarEmoji: {
-    fontSize: 20,
-  },
+
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
