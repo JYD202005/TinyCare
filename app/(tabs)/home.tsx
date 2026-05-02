@@ -5,8 +5,19 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import Svg, { Path, Defs, LinearGradient, Stop, Line } from "react-native-svg";
 import { TC } from "../../components/theme";
 import DashboardCard, {
@@ -173,6 +184,7 @@ const HistoryCard: React.FC<{ vital: VitalType; color: string }> = ({
 // ─── Home Screen ─────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [babies, setBabies] = useState<{ id: string, name: string, emoji: string, connected: boolean }[]>([
     { id: 'loading', name: 'Cargando...', emoji: '⏳', connected: false }
   ]);
@@ -217,27 +229,60 @@ export default function HomeScreen() {
         {/* ── Header ── */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.babyName}>Panel de Salud</Text>
-            <Text style={styles.appTitle}>{activeBaby.name} {activeBaby.emoji}</Text>
+            <Text style={styles.babyName}>Hola de nuevo,</Text>
+            <Text style={styles.appTitle}>Panel de Salud</Text>
           </View>
           <View style={styles.headerRight}>
-            <View style={styles.dotsContainer}>
-              {babies.length > 1 && babies.map((b, index) => (
-                <TouchableOpacity 
-                  key={index}
-                  activeOpacity={0.8}
-                  onPress={() => setActiveBabyIndex(index)}
-                  style={[styles.dot, index === activeBabyIndex && styles.dotActive]}
-                >
-                  <Text style={[styles.dotEmoji, index === activeBabyIndex && styles.dotEmojiActive]}>{b.emoji}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
             <TouchableOpacity style={styles.notifBtn} activeOpacity={0.7}>
               <Ionicons name="notifications-outline" size={24} color={TC.textDark} />
               <View style={styles.notifBadge} />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* ── Profiles Selector ── */}
+        <View style={styles.profilesWrapper}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.profilesContainer}
+          >
+            {babies.map((b, index) => {
+              const isActive = index === activeBabyIndex;
+              return (
+                <TouchableOpacity 
+                  key={index}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setActiveBabyIndex(index);
+                  }}
+                  style={[styles.profilePill, isActive && styles.profilePillActive]}
+                >
+                  <View style={[styles.profileEmojiBox, isActive && styles.profileEmojiBoxActive]}>
+                    <Text style={styles.profileEmoji}>{b.emoji}</Text>
+                  </View>
+                  <View style={styles.profileInfo}>
+                    <Text style={[styles.profileName, isActive && styles.profileNameActive]}>
+                      {b.name}
+                    </Text>
+                    {isActive && (
+                      <Text style={styles.profileStatus}>Monitoreando</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity 
+              activeOpacity={0.7}
+              onPress={() => router.push('/(tabs)/profile')}
+              style={styles.profileAddBtn}
+            >
+              <View style={styles.profileAddIcon}>
+                <Ionicons name="add" size={24} color={TC.vitalHeart} />
+              </View>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
 
         {/* ── Bluetooth Banner ── */}
@@ -337,36 +382,93 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 12,
   },
-  dotsContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginRight: 4,
-    marginBottom: 6,
-    alignItems: 'center',
+  profilesWrapper: {
+    marginHorizontal: -20,
+    marginBottom: 4,
+    marginTop: -8, // Pull closer to header
   },
-  dot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#FFE8A1', // Light yellow background
+  profilesContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    gap: 12,
+  },
+  profilePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    padding: 8,
+    paddingRight: 20,
+    borderRadius: 36,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    shadowColor: TC.textDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
+    height: 64, // fixed height helps keep things stable when animating width
+  },
+  profilePillActive: {
+    backgroundColor: TC.vitalHeart,
+    borderColor: TC.vitalHeart,
+    shadowColor: TC.vitalHeart,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  profileEmojiBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    opacity: 0.5,
+    marginRight: 12,
   },
-  dotActive: {
-    backgroundColor: '#FFC107', // Strong yellow
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: TC.textDark, // Black/dark border for the active state
-    opacity: 1,
+  profileEmojiBoxActive: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  dotEmoji: {
-    fontSize: 14,
+  profileEmoji: {
+    fontSize: 22,
   },
-  dotEmojiActive: {
+  profileInfo: {
+    justifyContent: 'center',
+  },
+  profileName: {
     fontSize: 16,
+    fontWeight: '800',
+    color: TC.textDark,
+    letterSpacing: -0.3,
+  },
+  profileNameActive: {
+    color: '#FFF',
+  },
+  profileStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 2,
+  },
+  profileAddBtn: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: TC.inputBorder,
+    borderStyle: 'dashed',
+    marginLeft: 4,
+  },
+  profileAddIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: TC.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   babyName: {
     fontSize: 13,
