@@ -28,18 +28,20 @@ export const evaluarLectura = (
       alertas.push({ tipo: 'Bradicardia', nivel, mensaje: `FC baja: ${lectura.fc} lpm. Cifras <= 100 requieren estudio.` });
     } 
     // Taquicardia Neonatal
+    else if (lectura.fc > 150 && (lectura.actividad === 'Reposo' || lectura.actividad === 'Sueño')) {
+      esAnomalia = true;
+      const msg = lectura.fc >= 200 ? 'Riesgo inminente de cardiopatía (>200 lpm)' : 'Taquicardia en reposo (posible cardiopatía)';
+      const nivel = lectura.fc >= 200 ? 'Critico' : 'Advertencia';
+      alertas.push({ tipo: 'Taquicardia en reposo', nivel, mensaje: `${msg}: ${lectura.fc} lpm.` });
+    }
     else if (lectura.fc > 160) {
-      // La FC varía con el llanto y puede llegar a 180.
       if (lectura.actividad === 'Llanto' && lectura.fc <= 180) {
          // Es un aumento fisiológico normal, se omite alerta.
       } else {
-        // Una FC sobre 150 latidos/min persistente o aislada en reposo indica cardiopatía.
-        // Una FC por encima de 200 latidos/min indica cardiopatía en cualquier estado.
-        if (lectura.actividad === 'Reposo' || lectura.actividad === 'Sueño' || lectura.fc >= 200) {
-          esAnomalia = true;
-          const msg = lectura.fc >= 200 ? 'Riesgo de cardiopatía (>200 lpm)' : 'Taquicardia en reposo (posible cardiopatía)';
-          alertas.push({ tipo: 'Taquicardia', nivel: 'Critico', mensaje: `${msg}: ${lectura.fc} lpm.` });
-        }
+        esAnomalia = true;
+        const msg = lectura.fc >= 200 ? 'Riesgo inminente de cardiopatía (>200 lpm)' : 'Taquicardia neonatal';
+        const nivel = lectura.fc >= 200 ? 'Critico' : 'Advertencia';
+        alertas.push({ tipo: 'Taquicardia', nivel, mensaje: `${msg}: ${lectura.fc} lpm.` });
       }
     }
   } 
@@ -61,16 +63,23 @@ export const evaluarLectura = (
   // ==========================================
   // 2. FRECUENCIA RESPIRATORIA (FR)
   // ==========================================
-  if (perfil.grupoEdad === 'Neonato') {
+  if (lectura.fr === 0) {
+    esAnomalia = true;
+    alertas.push({ tipo: 'Apnea', nivel: 'Critico', mensaje: 'Suspensión transitoria de la respiración (0 rpm).' });
+  } else if (perfil.grupoEdad === 'Neonato') {
     if (lectura.fr < 40) {
       esAnomalia = true;
       alertas.push({ tipo: 'Bradipnea', nivel: 'Advertencia', mensaje: `Respiración lenta: ${lectura.fr} rpm.` });
+    } else if (lectura.fr > 50 && lectura.fr <= 60 && (lectura.actividad === 'Reposo' || lectura.actividad === 'Sueño')) {
+      esAnomalia = true;
+      alertas.push({ tipo: 'Taquipnea Leve', nivel: 'Advertencia', mensaje: `FR alta en reposo: ${lectura.fr} rpm. Posible presión venosa pulmonar elevada.` });
     } else if (lectura.fr > 60) {
-      // La FR aumenta (taquipnea) con el llanto o la agitación.
       if (lectura.actividad !== 'Llanto' && lectura.actividad !== 'Inquieto') {
         esAnomalia = true;
-        // FR por encima de 50 a 60 indica presión venosa pulmonar elevada.
-        alertas.push({ tipo: 'Taquipnea', nivel: 'Critico', mensaje: `FR alta en reposo: ${lectura.fr} rpm. Riesgo de SDR o presión venosa pulmonar elevada.` });
+        alertas.push({ tipo: 'Taquipnea', nivel: 'Critico', mensaje: `FR patológica en reposo: ${lectura.fr} rpm. Riesgo de SDR severo.` });
+      } else if (lectura.fr > 80) {
+        esAnomalia = true;
+        alertas.push({ tipo: 'Polipnea Extrema', nivel: 'Critico', mensaje: `FR peligrosamente alta: ${lectura.fr} rpm.` });
       }
     }
   } else {
@@ -97,10 +106,11 @@ export const evaluarLectura = (
     // Una saturación menor que 92% respirando aire ambiente se considera patológica.
     if (lectura.spo2 < 92) {
       // El llanto o el esfuerzo pueden causar cianosis transitoria.
-      // Saturación por debajo de 80% es hipoxemia severa.
-      const nivel = (lectura.spo2 < 80 || lectura.actividad === 'Reposo') ? 'Critico' : 'Advertencia'; 
+      // Saturación por debajo de 90% requiere evaluación médica inmediata según guías.
+      const nivel = (lectura.spo2 < 90 || lectura.actividad === 'Reposo') ? 'Critico' : 'Advertencia'; 
       esAnomalia = true;
-      alertas.push({ tipo: 'Hipoxemia', nivel, mensaje: `SpO2 patológico: ${lectura.spo2}%.` });
+      const msg = lectura.spo2 < 90 ? 'Requiere evaluación inmediata.' : '';
+      alertas.push({ tipo: 'Hipoxemia', nivel, mensaje: `SpO2 patológico: ${lectura.spo2}%. ${msg}`.trim() });
     } else if (lectura.spo2 > 98) {
        // Superior a 98% es hiperoxia.
        alertas.push({ tipo: 'Hiperoxia', nivel: 'Info', mensaje: `SpO2 superior a 98%: ${lectura.spo2}%.` });
@@ -129,9 +139,9 @@ export const evaluarLectura = (
       if (lectura.temp < 36.5) {
         esAnomalia = true;
         alertas.push({ tipo: 'Hipotermia', nivel: 'Critico', mensaje: `Hipotermia neonatal: ${lectura.temp}°C. Riesgo de estrés por frío y apnea.` });
-      } else if (lectura.temp > 38.0) {
+      } else if (lectura.temp >= 38.0) {
         esAnomalia = true;
-        alertas.push({ tipo: 'Hipertermia', nivel: 'Critico', mensaje: `Elevación térmica: ${lectura.temp}°C.` });
+        alertas.push({ tipo: 'Hipertermia', nivel: 'Critico', mensaje: `Elevación térmica persistente (Fiebre): ${lectura.temp}°C.` });
       }
     } else {
       // Niño General: Temperatura "normal" definida como 37 °C. 
@@ -155,23 +165,28 @@ export const evaluarLectura = (
           esAnomalia = true;
           alertas.push({ tipo: 'Hipotensión Neonatal', nivel: 'Critico', mensaje: `PAM baja: ${lectura.pam} mmHg. Esperada: ~${perfil.edadGestacionalSemanas} mmHg.`});
       }
-  } else if (lectura.pas && perfil.pesoKg) {
+  } else if (lectura.pas) {
     let pasMinima = 0;
     
-    // Límites inferiores de PAS (Hipotensión) en contexto de riesgo:
-    if (perfil.esPrematuro && perfil.pesoKg >= 1 && perfil.pesoKg <= 2) {
-      pasMinima = 50; // Lactantes Prematuros (1 a 2 kg).
-    } else if (perfil.pesoKg >= 3 && perfil.pesoKg < 10) {
-      pasMinima = 60; // Lactantes/Niños (3 a 10 kg).
-    } else if (perfil.pesoKg >= 10 && perfil.edadAnios !== undefined) {
-      // Niños (>= 10 kg): 70 más (2 x edad en años, si es < 10).
-      const factorEdad = perfil.edadAnios < 10 ? perfil.edadAnios : 10;
-      pasMinima = 70 + (2 * factorEdad); 
+    if (perfil.pesoKg) {
+      if (perfil.pesoKg < 3) {
+        pasMinima = 50; // Prematuros o muy bajo peso (< 3kg).
+      } else if (perfil.pesoKg >= 3 && perfil.pesoKg <= 10) {
+        pasMinima = 60; // Lactantes/Niños (3 a 10 kg).
+      } else if (perfil.pesoKg > 10) {
+        const factorEdad = (perfil.edadAnios !== undefined && perfil.edadAnios < 10) ? perfil.edadAnios : 10;
+        pasMinima = 70 + (2 * factorEdad); 
+      }
+    } else {
+      // Fallback si no hay peso registrado
+      if (perfil.grupoEdad === 'Neonato') pasMinima = 50;
+      else if (perfil.grupoEdad === 'Lactante') pasMinima = 60;
+      else pasMinima = 70;
     }
 
     if (pasMinima > 0 && lectura.pas < pasMinima) {
       esAnomalia = true;
-      alertas.push({ tipo: 'Hipotensión', nivel: 'Critico', mensaje: `PAS baja: ${lectura.pas} mmHg (Límite inferior: ${pasMinima}).` });
+      alertas.push({ tipo: 'Hipotensión', nivel: 'Critico', mensaje: `PAS baja: ${lectura.pas} mmHg (Límite inferior esperado: ${pasMinima}).` });
     }
   }
 

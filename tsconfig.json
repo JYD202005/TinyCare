@@ -8,7 +8,9 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "useDefineForClassFields": false,
+    "strictPropertyInitialization": false
   },
   "include": [
     "**/*.ts",

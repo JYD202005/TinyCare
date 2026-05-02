@@ -118,5 +118,17 @@ export const babyMonitorSchema = appSchema({
         { name: 'is_synced', type: 'boolean' }, // Para limpiar alertas viejas
       ]
     }),
+    // --- 5. AGENDA (Sólo citas creadas manualmente, las del IMSS se calculan al vuelo) ---
+    tableSchema({
+      name: 'citas_personalizadas',
+      columns: [
+        { name: 'id_perfil', type: 'string', isIndexed: true },
+        { name: 'titulo', type: 'string' },
+        { name: 'especialidad_medico', type: 'string', isOptional: true },
+        { name: 'fecha_cita', type: 'number', isIndexed: true },
+        { name: 'notas', type: 'string', isOptional: true },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ]
+    }),
   ]
 })

@@ -6,6 +6,7 @@ import Emergencia from './Emergencia'
 import TelemetriaCruda from './TelemetriaCruda'
 import TelemetriaResumen from './TelemetriaResumen'
 import AlertaMedica from './AlertaMedica'
+import CitaPersonalizada from './CitaPersonalizada'
 
 export const models = [
   Perfil,
@@ -16,6 +17,7 @@ export const models = [
   TelemetriaCruda,
   TelemetriaResumen,
   AlertaMedica,
+  CitaPersonalizada,
 ]
 
 export {
@@ -27,4 +29,5 @@ export {
   TelemetriaCruda,
   TelemetriaResumen,
   AlertaMedica,
+  CitaPersonalizada,
 }

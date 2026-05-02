@@ -27,7 +27,9 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      ["@lovesworking/watermelondb-expo-plugin-sdk-52-plus"],
+      [
+        "@lovesworking/watermelondb-expo-plugin-sdk-52-plus"
+      ],
       [
         "@config-plugins/react-native-ble-plx",
         {
@@ -57,11 +59,14 @@
         {
           "android": {
             "packagingOptions": {
-              "pickFirst": ["**/libc++_shared.so"]
+              "pickFirst": [
+                "**/libc++_shared.so"
+              ]
             }
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
