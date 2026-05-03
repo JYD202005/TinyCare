@@ -5,5 +5,11 @@ module.exports = function (api) {
     plugins: [
       ['@babel/plugin-proposal-decorators', { legacy: true }],
     ],
+    overrides: [
+      {
+        exclude: /node_modules/,
+        plugins: [['@babel/plugin-proposal-class-properties', { loose: true }]],
+      },
+    ],
   };
 };
