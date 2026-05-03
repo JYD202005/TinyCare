@@ -1,8 +1,5 @@
 /**
  * polyfills.ts
- * Must be imported at the very top of the app entry point — before any
- * React Native or WatermelonDB import — so that Hermes's frozen globals
- * are made writable before any library tries to mutate them.
  *
  * Root cause: WatermelonDB (and some React Native internals) extend the
  * global `Event` class and attempt to set instance properties like
@@ -12,38 +9,41 @@
  * mode.
  */
 
-const EVENT_CONSTANTS = ['NONE', 'CAPTURING_PHASE', 'AT_TARGET', 'BUBBLING_PHASE'] as const;
-
 function patchEventConstants() {
   try {
-    // Patch both the constructor and its prototype
-    const targets: object[] = [];
-    if (typeof Event !== 'undefined') {
-      targets.push(Event);
-      if (Event.prototype) targets.push(Event.prototype);
-    }
-    // Also patch via global in case the binding is different
-    if (typeof global !== 'undefined' && (global as any).Event) {
-      const g = (global as any).Event;
-      if (!targets.includes(g)) targets.push(g);
-      if (g.prototype && !targets.includes(g.prototype)) targets.push(g.prototype);
-    }
-
-    for (const target of targets) {
-      for (const prop of EVENT_CONSTANTS) {
-        const desc = Object.getOwnPropertyDescriptor(target, prop);
-        if (desc && desc.writable === false) {
-          Object.defineProperty(target, prop, {
-            value: desc.value,
-            writable: true,
-            enumerable: desc.enumerable ?? true,
-            configurable: true,
-          });
-        }
+    var globalObj = typeof globalThis !== 'undefined' ? globalThis : typeof global !== 'undefined' ? global : window;
+    
+    if (globalObj.Event && !(globalObj.Event as any).__patched) {
+      var OriginalEvent = globalObj.Event;
+      
+      // Wrapper que hereda de Event
+      var PatchedEvent = function(type: any, options: any) {
+        return Reflect.construct(OriginalEvent, [type, options], PatchedEvent);
+      };
+      
+      // Copiar estáticos
+      Object.setPrototypeOf(PatchedEvent, OriginalEvent);
+      
+      // Configurar herencia
+      PatchedEvent.prototype = Object.create(OriginalEvent.prototype);
+      PatchedEvent.prototype.constructor = PatchedEvent;
+      
+      // Redefinir propiedades conflictivas como WRITABLE
+      var PROPS = { NONE: 0, CAPTURING_PHASE: 1, AT_TARGET: 2, BUBBLING_PHASE: 3 };
+      for (var key in PROPS) {
+        Object.defineProperty(PatchedEvent.prototype, key, {
+          value: (PROPS as any)[key],
+          writable: true, 
+          configurable: true,
+          enumerable: true
+        });
       }
+      
+      (PatchedEvent as any).__patched = true;
+      globalObj.Event = PatchedEvent as any;
     }
-  } catch (_) {
-    // Silently ignore — if it fails the app may still crash, but we tried
+  } catch (err) {
+    console.warn('[TinyCare] Error patching Event in polyfills.ts:', err);
   }
 }
 

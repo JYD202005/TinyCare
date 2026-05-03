@@ -1,5 +1,4 @@
-// ⚠️ Must be first — patches frozen Hermes globals before any lib loads
-import '../src/polyfills';
+
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { DatabaseProvider } from '@/src/database/context';

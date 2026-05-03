@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { TC } from "../components/theme";
+import ComboDatePicker from "../components/ComboDatePicker";
 import { useToast } from "../components/Toast";
 import { database } from "../src/database";
 import { Perfil, DatosPersonales, SaludContexto, Cuidador, Emergencia } from "../src/database/models";
@@ -44,6 +45,7 @@ export default function EditBabyScreen() {
   // Data States
   const [nombre, setNombre] = useState('');
   const [sexo, setSexo] = useState('Femenino');
+  const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [avatar, setAvatar] = useState('❤️');
   const [peso, setPeso] = useState('');
   const [talla, setTalla] = useState('');
@@ -110,6 +112,10 @@ export default function EditBabyScreen() {
       if (dp) {
         setDatosPersonales(dp);
         setSexo(dp.sexo || 'Femenino');
+        if (dp.fechaNacimiento) {
+          const date = new Date(dp.fechaNacimiento);
+          setFechaNacimiento(`${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`);
+        }
       }
 
       const scRecords = await database.get<SaludContexto>('salud_contexto').query().fetch();
@@ -161,11 +167,21 @@ export default function EditBabyScreen() {
           p.avatar = avatar.trim() || '❤️';
         });
 
+        // Parse DD/MM/YYYY to timestamp
+        let fechaParsed = Date.now();
+        if (fechaNacimiento) {
+          const parts = fechaNacimiento.split('/');
+          if (parts.length === 3) {
+            fechaParsed = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
+          }
+        }
+
         // 2. Actualizar o CREAR DatosPersonales si no existen
         if (datosPersonales) {
           await datosPersonales.update((d: any) => {
             d.primerNombre = nombre.trim();
             d.sexo = sexo;
+            d.fechaNacimiento = fechaParsed;
           });
         } else {
           const newDp = await database.get<DatosPersonales>('datos_personales').create((d: any) => {
@@ -173,7 +189,7 @@ export default function EditBabyScreen() {
             d.primerNombre = nombre.trim();
             d.sexo = sexo;
             d.apellidoPaterno = '';
-            d.fechaNacimiento = Date.now();
+            d.fechaNacimiento = fechaParsed;
           });
           setDatosPersonales(newDp);
         }
@@ -458,6 +474,10 @@ export default function EditBabyScreen() {
               <View style={styles.inputRow}>
                 <Text style={styles.inputLabel}>Nombre o Apodo</Text>
                 <TextInput style={styles.textInput} value={nombre} onChangeText={setNombre} placeholder="Nombre" />
+              </View>
+              <View style={styles.divider} />
+              <View style={{ padding: 16 }}>
+                <ComboDatePicker value={fechaNacimiento} onChange={setFechaNacimiento} />
               </View>
               <View style={styles.divider} />
               <View style={[styles.inputRow, { flexWrap: 'wrap' }]}>

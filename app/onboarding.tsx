@@ -19,9 +19,8 @@ import { useDatabase } from '@/src/database/context';
 
 import WaveHeader from '../components/WaveHeader';
 import PillInput from '../components/PillInput';
-import WebDatePicker from '../components/WebDatePicker';
+import ComboDatePicker from '../components/ComboDatePicker';
 import GradientButton from '../components/GradientButton';
-import InlineDatePicker from '../components/InlineDatePicker';
 import { TC } from '../components/theme';
 
 interface Bebe {
@@ -253,17 +252,10 @@ export default function Onboarding() {
                       containerStyle={styles.inputSpacing}
                     />
 
-                    {Platform.OS === 'web' ? (
-                      <WebDatePicker
-                        value={bebe.fechaNacimiento}
-                        onChange={(t) => actualizarBebe(bebe.id, 'fechaNacimiento', t)}
-                      />
-                    ) : (
-                      <InlineDatePicker
-                        value={bebe.fechaNacimiento}
-                        onChange={(t) => actualizarBebe(bebe.id, 'fechaNacimiento', t)}
-                      />
-                    )}
+                    <ComboDatePicker
+                      value={bebe.fechaNacimiento}
+                      onChange={(t) => actualizarBebe(bebe.id, 'fechaNacimiento', t)}
+                    />
 
                     <PillInput
                       icon="scale-outline"
