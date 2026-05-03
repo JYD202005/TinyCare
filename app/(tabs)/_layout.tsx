@@ -7,11 +7,10 @@ export default function TabsLayout() {
       tabBar={(props) => <NavigationBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen name="history" />
-      <Tabs.Screen name="stats" />
-      <Tabs.Screen name="home" />
-      <Tabs.Screen name="alerts" />
       <Tabs.Screen name="store" />
+      <Tabs.Screen name="alerts" />
+      <Tabs.Screen name="home" />
+      <Tabs.Screen name="stats" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );

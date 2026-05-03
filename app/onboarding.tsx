@@ -9,6 +9,7 @@ import {
   ScrollView,
   Image,
   Switch,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,6 +55,7 @@ export default function Onboarding() {
   }]);
   // No native date picker state needed — using custom InlineDatePicker wheel
   const [showEmojiPickerId, setShowEmojiPickerId] = useState<number | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const agregarBebe = () => {
     const nextEmoji = DEFAULT_EMOJIS[bebes.length % DEFAULT_EMOJIS.length];
@@ -77,7 +79,7 @@ export default function Onboarding() {
           if (!bebe.nombre.trim()) continue;
 
           const perfil = await database.get('perfiles').create((p: any) => {
-            p.nombreIdentificador = bebe.nombre;
+            p.nombreIdentificador = bebe.nombre.trim();
             p.avatar = bebe.avatar;
             p.idUsuarioRemote = 'local';
           });
@@ -92,8 +94,9 @@ export default function Onboarding() {
 
           await database.get('datos_personales').create((d: any) => {
             d.idPerfil = perfil.id;
-            d.primerNombre = bebe.nombre;
-            d.sexo = 'No Especificado';
+            d.primerNombre = bebe.nombre.trim();
+            d.apellidoPaterno = ''; // Debe completarse después
+            d.sexo = 'No Especificado'; // Debe completarse después
             d.fechaNacimiento = fechaParsed.getTime();
           });
 
@@ -116,7 +119,7 @@ export default function Onboarding() {
         }
       });
       
-      router.replace('/(tabs)/home');
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("Error guardando datos iniciales", error);
     }
@@ -328,6 +331,42 @@ export default function Onboarding() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal transparent visible={showSuccessModal} animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(61,44,46,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: '#FFF', borderRadius: 28, padding: 32, width: '100%', alignItems: 'center', shadowColor: TC.shadow, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 }}>
+            
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: TC.accentLight, justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+              <Ionicons name="sparkles" size={40} color={TC.accent} />
+            </View>
+
+            <Text style={{ fontSize: 26, fontWeight: '800', color: TC.textDark, marginBottom: 12, textAlign: 'center' }}>
+              ¡Casi listo!
+            </Text>
+            
+            <Text style={{ fontSize: 16, color: TC.textBody, textAlign: 'center', lineHeight: 24, marginBottom: 24 }}>
+              Has creado el perfil básico. Para completar la información de tu bebé, dirígete a la sección de <Text style={{fontWeight: '800', color: TC.textDark}}>Perfiles</Text> en la app.
+            </Text>
+
+            <View style={{ backgroundColor: TC.inputBg, borderRadius: 16, padding: 16, width: '100%', marginBottom: 32, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: TC.inputBorder }}>
+               <View style={{ backgroundColor: '#FFF', borderRadius: 12, padding: 8, marginRight: 12, shadowColor: TC.shadow, shadowOpacity: 0.1, shadowRadius: 5, elevation: 2 }}>
+                 <Ionicons name="person-circle" size={28} color={TC.accent} />
+               </View>
+               <Text style={{ flex: 1, fontSize: 13, color: TC.textBody, lineHeight: 18 }}>Ahí podrás agregar sus apellidos, sexo y datos médicos importantes para protegerlo mejor.</Text>
+            </View>
+
+            <GradientButton
+              label="¡ENTENDIDO!"
+              onPress={() => {
+                setShowSuccessModal(false);
+                router.replace('/(tabs)/home');
+              }}
+              style={{ width: '100%' }}
+            />
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }

@@ -66,7 +66,7 @@ export default function ProfileScreen() {
             <View style={styles.cloudAvatar}>
               <Ionicons name="cloud-offline" size={28} color={TC.textMuted} />
             </View>
-            <View>
+            <View style={styles.cloudTextContainer}>
               <Text style={styles.cloudTitle}>Modo Local Activo</Text>
               <Text style={styles.cloudSub}>Los datos solo existen en tu dispositivo.</Text>
             </View>
@@ -163,14 +163,14 @@ const styles = StyleSheet.create({
   cloudCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: TC.accentLight,
     borderRadius: 24,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: TC.inputBorder,
     marginBottom: 32,
     borderCurve: "continuous" as any,
+    gap: 16,
   },
   cloudLeft: {
     flexDirection: 'row',
@@ -181,10 +181,15 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
+    elevation: 2,
+    shadowColor: TC.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cloudTitle: {
     fontSize: 16,
@@ -196,7 +201,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: TC.textBody,
     fontWeight: '500',
-    maxWidth: '90%',
+  },
+  cloudTextContainer: {
+    flex: 1,
   },
   cloudBtn: {
     backgroundColor: TC.textDark,

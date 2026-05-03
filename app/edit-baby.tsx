@@ -44,6 +44,10 @@ export default function EditBabyScreen() {
   
   // Data States
   const [nombre, setNombre] = useState('');
+  const [primerNombre, setPrimerNombre] = useState('');
+  const [segundoNombre, setSegundoNombre] = useState('');
+  const [apellidoPaterno, setApellidoPaterno] = useState('');
+  const [apellidoMaterno, setApellidoMaterno] = useState('');
   const [sexo, setSexo] = useState('Femenino');
   const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [avatar, setAvatar] = useState('❤️');
@@ -67,7 +71,7 @@ export default function EditBabyScreen() {
   const [cuidadoresList, setCuidadoresList] = useState<Cuidador[]>([]);
   const [cuidadorNombre, setCuidadorNombre] = useState('');
   const [cuidadorApellido, setCuidadorApellido] = useState('');
-  const [cuidadorRol, setCuidadorRol] = useState('Padre');
+  const [cuidadorRol, setCuidadorRol] = useState('');
   const [cuidadorLada, setCuidadorLada] = useState('+52');
   const [cuidadorNumero, setCuidadorNumero] = useState('');
 
@@ -111,11 +115,17 @@ export default function EditBabyScreen() {
       const dp = dpRecords.find(r => r.idPerfil === perfilId);
       if (dp) {
         setDatosPersonales(dp);
+        setPrimerNombre(dp.primerNombre || p.nombreIdentificador || '');
+        setSegundoNombre(dp.segundoNombre || '');
+        setApellidoPaterno(dp.apellidoPaterno || '');
+        setApellidoMaterno(dp.apellidoMaterno || '');
         setSexo(dp.sexo || 'Femenino');
         if (dp.fechaNacimiento) {
           const date = new Date(dp.fechaNacimiento);
           setFechaNacimiento(`${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`);
         }
+      } else {
+        setPrimerNombre(p.nombreIdentificador || '');
       }
 
       const scRecords = await database.get<SaludContexto>('salud_contexto').query().fetch();
@@ -156,7 +166,15 @@ export default function EditBabyScreen() {
   const handleSave = async () => {
     if (!perfil) return;
     if (!nombre.trim()) {
-      showToast('warning', 'El nombre del perfil no puede estar vacío.');
+      showToast('warning', 'El apodo del perfil no puede estar vacío.');
+      return;
+    }
+    if (!primerNombre.trim()) {
+      showToast('warning', 'El primer nombre no puede estar vacío.');
+      return;
+    }
+    if (!apellidoPaterno.trim()) {
+      showToast('warning', 'El apellido paterno no puede estar vacío.');
       return;
     }
     try {
@@ -179,16 +197,21 @@ export default function EditBabyScreen() {
         // 2. Actualizar o CREAR DatosPersonales si no existen
         if (datosPersonales) {
           await datosPersonales.update((d: any) => {
-            d.primerNombre = nombre.trim();
+            d.primerNombre = primerNombre.trim();
+            d.segundoNombre = segundoNombre.trim();
+            d.apellidoPaterno = apellidoPaterno.trim();
+            d.apellidoMaterno = apellidoMaterno.trim();
             d.sexo = sexo;
             d.fechaNacimiento = fechaParsed;
           });
         } else {
           const newDp = await database.get<DatosPersonales>('datos_personales').create((d: any) => {
             d.idPerfil = perfil.id;
-            d.primerNombre = nombre.trim();
+            d.primerNombre = primerNombre.trim();
+            d.segundoNombre = segundoNombre.trim();
+            d.apellidoPaterno = apellidoPaterno.trim();
+            d.apellidoMaterno = apellidoMaterno.trim();
             d.sexo = sexo;
-            d.apellidoPaterno = '';
             d.fechaNacimiento = fechaParsed;
           });
           setDatosPersonales(newDp);
@@ -473,16 +496,39 @@ export default function EditBabyScreen() {
             <View style={styles.cardGroup}>
               <View style={styles.inputRow}>
                 <Text style={styles.inputLabel}>Nombre o Apodo</Text>
-                <TextInput style={styles.textInput} value={nombre} onChangeText={setNombre} placeholder="Nombre" />
+                <TextInput style={styles.textInput} value={nombre} onChangeText={setNombre} placeholder="Ej. Josef" />
+              </View>
+              <View style={styles.divider} />
+
+              <View style={{ padding: 16, flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
+                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>PRIMER NOMBRE</Text>
+                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={primerNombre} onChangeText={setPrimerNombre} placeholder="Nombre" placeholderTextColor="#CBD5E1" />
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
+                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>SEGUNDO NOMBRE</Text>
+                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={segundoNombre} onChangeText={setSegundoNombre} placeholder="Opcional" placeholderTextColor="#CBD5E1" />
+                </View>
+              </View>
+
+              <View style={{ paddingHorizontal: 16, paddingBottom: 16, flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
+                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>APELLIDO PATERNO</Text>
+                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={apellidoPaterno} onChangeText={setApellidoPaterno} placeholder="Paterno" placeholderTextColor="#CBD5E1" />
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
+                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>APELLIDO MATERNO</Text>
+                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={apellidoMaterno} onChangeText={setApellidoMaterno} placeholder="Materno" placeholderTextColor="#CBD5E1" />
+                </View>
               </View>
               <View style={styles.divider} />
               <View style={{ padding: 16 }}>
                 <ComboDatePicker value={fechaNacimiento} onChange={setFechaNacimiento} />
               </View>
               <View style={styles.divider} />
-              <View style={[styles.inputRow, { flexWrap: 'wrap' }]}>
-                <Text style={styles.inputLabel}>Sexo</Text>
-                <View style={[styles.chipRow, { flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 8 }]}>
+              <View style={{ padding: 16 }}>
+                <Text style={[styles.inputLabel, { marginBottom: 12 }]}>Sexo</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   <TouchableOpacity onPress={() => setSexo('Femenino')} style={[styles.chip, sexo === 'Femenino' && styles.chipActive]}>
                     <Text style={[styles.chipText, sexo === 'Femenino' && styles.chipTextActive]}>Femenino</Text>
                   </TouchableOpacity>
@@ -501,19 +547,20 @@ export default function EditBabyScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Medidas y Sangre</Text>
             <View style={styles.cardGroup}>
-              <View style={styles.inputRow}>
-                <Text style={styles.inputLabel}>Peso (kg)</Text>
-                <TextInput style={styles.textInput} value={peso} onChangeText={setPeso} keyboardType="numeric" placeholder="Ej. 4.5" />
+              <View style={{ padding: 16, flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
+                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>PESO (KG)</Text>
+                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={peso} onChangeText={setPeso} keyboardType="numeric" placeholder="Ej. 4.5" placeholderTextColor="#CBD5E1" />
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
+                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>TALLA (CM)</Text>
+                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={talla} onChangeText={setTalla} keyboardType="numeric" placeholder="Ej. 55" placeholderTextColor="#CBD5E1" />
+                </View>
               </View>
               <View style={styles.divider} />
-              <View style={styles.inputRow}>
-                <Text style={styles.inputLabel}>Talla (cm)</Text>
-                <TextInput style={styles.textInput} value={talla} onChangeText={setTalla} keyboardType="numeric" placeholder="Ej. 55" />
-              </View>
-              <View style={styles.divider} />
-              <View style={[styles.inputRow, { flexWrap: 'wrap' }]}>
-                <Text style={styles.inputLabel}>Grupo Sanguíneo</Text>
-                <View style={[styles.chipRow, { flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 8 }]}>
+              <View style={{ padding: 16 }}>
+                <Text style={[styles.inputLabel, { marginBottom: 12 }]}>Grupo Sanguíneo</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {SANGRE.map(s => (
                     <TouchableOpacity key={s} onPress={() => setGrupoSanguineo(s)} style={[styles.chip, grupoSanguineo === s && styles.chipActive]}>
                       <Text style={[styles.chipText, grupoSanguineo === s && styles.chipTextActive]}>{s}</Text>
@@ -522,19 +569,20 @@ export default function EditBabyScreen() {
                 </View>
               </View>
               {grupoSanguineo === 'Otro' && (
-                <View style={[styles.inputRow, { backgroundColor: '#F8FAFC' }]}>
+                <View style={{ padding: 16, paddingTop: 0 }}>
                   <TextInput 
-                    style={[styles.textInput, { textAlign: 'left' }]} 
+                    style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder, fontSize: 15, color: TC.textDark, fontWeight: '500' }} 
                     value={grupoSanguineoOtro} 
                     onChangeText={setGrupoSanguineoOtro} 
                     placeholder="Especificar grupo sanguíneo raro..." 
+                    placeholderTextColor="#CBD5E1"
                   />
                 </View>
               )}
               <View style={styles.divider} />
-              <View style={styles.inputRow}>
-                <Text style={styles.inputLabel}>Factor RH</Text>
-                <View style={styles.chipRow}>
+              <View style={{ padding: 16 }}>
+                <Text style={[styles.inputLabel, { marginBottom: 12 }]}>Factor RH</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   <TouchableOpacity onPress={() => setFactorRh('+')} style={[styles.chip, factorRh === '+' && styles.chipActive]}>
                     <Text style={[styles.chipText, factorRh === '+' && styles.chipTextActive]}>Positivo (+)</Text>
                   </TouchableOpacity>
@@ -555,12 +603,13 @@ export default function EditBabyScreen() {
                 <Switch value={tieneAlergias} onValueChange={setTieneAlergias} trackColor={{ true: TC.accent }} />
               </View>
               {tieneAlergias && (
-                <View style={[styles.inputRow, { backgroundColor: '#F8FAFC' }]}>
+                <View style={{ padding: 16, paddingTop: 0 }}>
                   <TextInput 
-                    style={styles.textArea} 
+                    style={[styles.textArea, { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }]} 
                     value={detallesAlergias} 
                     onChangeText={setDetallesAlergias} 
                     placeholder="Describe las alergias..." 
+                    placeholderTextColor="#CBD5E1"
                     multiline 
                   />
                 </View>
@@ -571,12 +620,13 @@ export default function EditBabyScreen() {
                 <Switch value={tieneComplicaciones} onValueChange={setTieneComplicaciones} trackColor={{ true: TC.accent }} />
               </View>
               {tieneComplicaciones && (
-                <View style={[styles.inputRow, { backgroundColor: '#F8FAFC' }]}>
+                <View style={{ padding: 16, paddingTop: 0 }}>
                   <TextInput 
-                    style={styles.textArea} 
+                    style={[styles.textArea, { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }]} 
                     value={detallesComplicaciones} 
                     onChangeText={setDetallesComplicaciones} 
                     placeholder="Describe las complicaciones..." 
+                    placeholderTextColor="#CBD5E1"
                     multiline 
                   />
                 </View>
