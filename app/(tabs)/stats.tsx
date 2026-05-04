@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Modal, Pressable, Animated } from "react-native";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Modal, Pressable, Animated, TextInput, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import * as MailComposer from "expo-mail-composer";
 import { TC } from "../../components/theme";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -71,6 +72,18 @@ const TrendChart = ({ data, color, height = 80, width, showDots = true }: { data
 const MetricMiniCard = ({ metric, period, onPress }: any) => {
   const data = period === "24H" ? metric.data24H : metric.data7D;
   const isNormal = metric.status === 'Normal';
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const prevValue = useRef(metric.value);
+
+  useEffect(() => {
+    if (prevValue.current !== metric.value) {
+      prevValue.current = metric.value;
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.6, duration: 120, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [metric.value]);
 
   return (
     <TouchableOpacity 
@@ -85,13 +98,13 @@ const MetricMiniCard = ({ metric, period, onPress }: any) => {
         <View style={[s.statusDot, { backgroundColor: isNormal ? '#10B981' : '#EF4444' }]} />
       </View>
       
-      <View style={s.miniBody}>
+      <Animated.View style={[s.miniBody, { opacity: pulseAnim }]}>
         <Text style={s.miniTitle} numberOfLines={1}>{metric.title}</Text>
         <View style={s.miniValueRow}>
           <Text style={[s.miniValue, { color: metric.color }]} numberOfLines={1} adjustsFontSizeToFit>{metric.value}</Text>
           <Text style={s.miniUnit}>{metric.unit}</Text>
         </View>
-      </View>
+      </Animated.View>
 
       <TrendChart data={data} color={metric.color} height={36} width={MINI_CHART_W} showDots={false} />
     </TouchableOpacity>
@@ -274,9 +287,140 @@ const METRICS = [
   }
 ];
 
+/* ── Send to Pediatrician ── */
+const SendToPediatrician = ({ metrics, period }: { metrics: typeof METRICS; period: string }) => {
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const handleSend = async () => {
+    const statsBody = metrics.map(m => {
+      const data = period === "24H" ? m.data24H : m.data7D;
+      const avg = (data.reduce((a, b) => a + b, 0) / data.length).toFixed(1);
+      return `• ${m.fullName}: ${m.value} ${m.unit} (Prom: ${avg}, Estado: ${m.status})`;
+    }).join("\n");
+
+    const body = `Reporte TinyCare — ${period === "24H" ? "Últimas 24h" : "Últimos 7 días"}\n\n${statsBody}${message.trim() ? `\n\nNota del tutor:\n${message.trim()}` : ""}\n\n— Enviado desde TinyCare`;
+
+    setSending(true);
+    Animated.sequence([
+      Animated.timing(pulseAnim, { toValue: 0.94, duration: 80, useNativeDriver: true }),
+      Animated.timing(pulseAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
+    ]).start();
+
+    try {
+      const ok = await MailComposer.isAvailableAsync();
+      if (!ok) { Alert.alert("Sin correo", "No hay app de correo en este dispositivo."); setSending(false); return; }
+      await MailComposer.composeAsync({
+        recipients: [], // TODO: inyectar correo del pediatra asignado
+        subject: `Reporte Pediátrico TinyCare — ${new Date().toLocaleDateString("es-MX")}`,
+        body,
+      });
+    } catch { Alert.alert("Error", "No se pudo abrir el correo."); }
+    setSending(false);
+  };
+
+  return (
+    <View style={s.pedCard}>
+      <View style={s.pedStripe} />
+      <View style={s.pedContent}>
+        <View style={s.pedHeader}>
+          <View style={s.pedIconBox}>
+            <Ionicons name="mail" size={20} color="#FFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.pedTitle}>Enviar al Pediatra</Text>
+            <Text style={s.pedSubtitle}>Resumen clínico + nota breve</Text>
+          </View>
+        </View>
+
+        <View style={s.pedPreview}>
+          {metrics.map(m => (
+            <View key={m.id} style={s.pedPreviewRow}>
+              <Ionicons name={m.icon as any} size={14} color={m.color} />
+              <Text style={s.pedPreviewLabel}>{m.title}</Text>
+              <Text style={[s.pedPreviewVal, { color: m.color }]}>{m.value} {m.unit}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={s.pedInputWrap}>
+          <Ionicons name="chatbubble-ellipses" size={16} color={TC.vitalOxygen} style={{ marginLeft: 14, marginTop: 2 }} />
+          <TextInput
+            style={s.pedInput}
+            placeholder="Nota breve para el doctor (opcional)"
+            placeholderTextColor="#B8A0A3"
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            maxLength={140}
+          />
+        </View>
+        {message.length > 0 && <Text style={s.pedCharCount}>{message.length}/140</Text>}
+
+        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+          <TouchableOpacity
+            style={[s.pedSendBtn, sending && { opacity: 0.6 }]}
+            onPress={handleSend}
+            activeOpacity={0.8}
+            disabled={sending}
+          >
+            <Ionicons name={sending ? "hourglass" : "send"} size={18} color="#FFF" />
+            <Text style={s.pedSendText}>{sending ? "Abriendo…" : "Enviar Reporte"}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <View style={s.pedDisclaimer}>
+          <Ionicons name="lock-closed" size={12} color="#94A3B8" />
+          <Text style={s.pedDisclaimerText}>Se abrirá tu app de correo</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+/* ── Random variation helpers ── */
+const randBetween = (min: number, max: number, decimals = 0) =>
+  +(min + Math.random() * (max - min)).toFixed(decimals);
+
+const shiftArray = (arr: number[], delta: () => number) => {
+  const next = [...arr.slice(1), arr[arr.length - 1] + delta()];
+  return next;
+};
+
 export default function StatsScreen() {
   const [period, setPeriod] = useState<"24H" | "7D">("24H");
   const [selectedMetric, setSelectedMetric] = useState<any>(null);
+  const [liveMetrics, setLiveMetrics] = useState(METRICS);
+
+  // Simulate live telemetry every 3s
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveMetrics(prev => prev.map(m => {
+        switch (m.id) {
+          case 'spo2': {
+            const v = randBetween(95, 99);
+            return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-1, 1)), insights: [{ label: 'Promedio', value: `${randBetween(96, 98)}%` }, m.insights[1]] };
+          }
+          case 'hr': {
+            const v = randBetween(105, 125);
+            return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-4, 4)), insights: [{ label: 'Promedio', value: String(randBetween(108, 118)) }, m.insights[1]] };
+          }
+          case 'temp': {
+            const v = randBetween(36.3, 36.9, 1);
+            return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-0.2, 0.2, 1)), insights: [{ label: 'Promedio', value: String(randBetween(36.4, 36.7, 1)) }, m.insights[1]] };
+          }
+          case 'posture': {
+            const v = randBetween(70, 95);
+            const side = 100 - v;
+            return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-5, 5)), insights: [{ label: 'Boca arriba', value: `${v}%` }, { label: 'De lado', value: `${side}%` }] };
+          }
+          default: return m;
+        }
+      }));
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <View style={s.root}>
@@ -305,7 +449,7 @@ export default function StatsScreen() {
         </View>
 
         <View style={s.metricsGrid}>
-          {METRICS.map(m => (
+          {liveMetrics.map(m => (
             <MetricMiniCard 
               key={m.id} 
               metric={m} 
@@ -324,6 +468,8 @@ export default function StatsScreen() {
             </Text>
           </View>
         </View>
+
+        <SendToPediatrician metrics={liveMetrics} period={period} />
 
       </ScrollView>
 
@@ -417,4 +563,45 @@ const s = StyleSheet.create({
   
   infoBox: { flexDirection: 'row', gap: 12, backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, alignItems: 'flex-start' },
   infoBoxText: { flex: 1, fontSize: 14, fontWeight: '400', color: '#475569', lineHeight: 22 },
+
+  // ── Pediatrician card ──
+  pedCard: {
+    backgroundColor: '#FFF', borderRadius: 28, borderCurve: 'continuous' as any,
+    overflow: 'hidden', boxShadow: '0 8px 24px rgba(92, 184, 165, 0.08)',
+    borderWidth: 1, borderColor: '#E8F5F1',
+  } as any,
+  pedStripe: { height: 4, backgroundColor: TC.vitalHeart },
+  pedContent: { padding: IS_SMALL ? 16 : 20, gap: 14 },
+  pedHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 2 },
+  pedIconBox: {
+    width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: TC.vitalHeart, boxShadow: '0 4px 12px rgba(92,184,165,0.25)',
+  } as any,
+  pedTitle: { fontSize: 17, fontWeight: '700', color: TC.textDark, letterSpacing: -0.3 },
+  pedSubtitle: { fontSize: 12, fontWeight: '500', color: '#94A3B8', marginTop: 1 },
+
+  pedPreview: {
+    backgroundColor: '#F8FAFB', borderRadius: 16, padding: 12, gap: 8,
+    borderWidth: 1, borderColor: '#EEF2F6',
+  },
+  pedPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pedPreviewLabel: { flex: 1, fontSize: 13, fontWeight: '500', color: '#64748B' },
+  pedPreviewVal: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] as any },
+
+  pedInputWrap: {
+    flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#F8FAFB',
+    borderRadius: 14, minHeight: 72, paddingTop: 12,
+    borderWidth: 1, borderColor: '#EEF2F6',
+  },
+  pedInput: { flex: 1, minHeight: 56, paddingHorizontal: 10, fontSize: 14, fontWeight: '500', color: TC.textDark, textAlignVertical: 'top' as any },
+  pedCharCount: { fontSize: 11, fontWeight: '600', color: '#B8A0A3', textAlign: 'right', marginTop: -8 },
+
+  pedSendBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: TC.vitalHeart, borderRadius: 16, paddingVertical: 14,
+    boxShadow: '0 6px 16px rgba(92,184,165,0.3)',
+  } as any,
+  pedSendText: { fontSize: 15, fontWeight: '700', color: '#FFF', letterSpacing: 0.2 },
+  pedDisclaimer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: -4 },
+  pedDisclaimerText: { fontSize: 11, fontWeight: '500', color: '#94A3B8' },
 });
