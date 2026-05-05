@@ -3,30 +3,50 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "rea
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { TC } from "../../components/theme";
+import { useToast } from "../../components/Toast";
 import { database } from "../../src/database";
-import { Perfil } from "../../src/database/models";
+import { Perfil, Dispositivo } from "../../src/database/models";
 import { useFocusEffect } from "@react-navigation/native";
 
 export default function ProfileScreen() {
   const [babies, setBabies] = useState<{ id: string, name: string, emoji: string }[]>([]);
+  const [pairedDevices, setPairedDevices] = useState<Dispositivo[]>([]);
+  const { showToast, ToastComponent } = useToast();
 
   // Recargar cada vez que la pantalla gana foco (ej. al regresar de edit-baby)
   useFocusEffect(
     useCallback(() => {
       const perfilesCollection = database.collections.get<Perfil>('perfiles');
-      const subscription = perfilesCollection.query().observe().subscribe((perfiles) => {
+      const dispositivosCollection = database.collections.get<Dispositivo>('dispositivos');
+
+      const sub1 = perfilesCollection.query().observe().subscribe((perfiles) => {
         setBabies(perfiles.map(p => ({
           id: p.id,
           name: p.nombreIdentificador || 'Bebé',
           emoji: p.avatar || '👶🏻',
         })));
       });
-      return () => subscription.unsubscribe();
+
+      const sub2 = dispositivosCollection.query().observe().subscribe((dispositivos) => {
+        setPairedDevices(dispositivos);
+      });
+
+      return () => {
+        sub1.unsubscribe();
+        sub2.unsubscribe();
+      };
     }, [])
   );
 
   const handleLogout = () => {
-    Alert.alert("Cerrar Sesión", "¿Estás seguro de que deseas salir de tu cuenta en la nube? Tus datos locales se mantendrán seguros.");
+    Alert.alert(
+      "Cerrar Sesión", 
+      "¿Estás seguro de que deseas salir de tu cuenta en la nube? Tus datos locales se mantendrán seguros.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Salir", style: "destructive", onPress: () => showToast("success", "Sesión en la nube cerrada correctamente") }
+      ]
+    );
   };
 
   const handleAddBaby = () => {
@@ -51,6 +71,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.root}>
+      {ToastComponent}
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -111,7 +132,12 @@ export default function ProfileScreen() {
           <View style={styles.cardGroup}>
             <SettingRow icon="notifications" label="Notificaciones Médicas" value="Activadas" />
             <View style={styles.divider} />
-            <SettingRow icon="bluetooth" label="Gestión de Sensores" value="1 Vinculado" />
+            <SettingRow 
+              icon="bluetooth" 
+              label="Gestión de Sensores" 
+              value={pairedDevices.length > 0 ? `${pairedDevices.length} Vinculado${pairedDevices.length > 1 ? 's' : ''}` : 'Sin Vincular'} 
+              onPress={() => router.push('/sensor-management')}
+            />
             <View style={styles.divider} />
             <SettingRow icon="share-social" label="Familia y Cuidadores" value="Invitar" />
           </View>

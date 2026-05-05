@@ -15,6 +15,7 @@ import WaveHeader from '../../components/WaveHeader';
 import PillInput from '../../components/PillInput';
 import GradientButton from '../../components/GradientButton';
 import { TC } from '../../components/theme';
+import { useToast } from '../../components/Toast';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -22,15 +23,18 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const { showToast, ToastComponent } = useToast();
 
   const handleLogin = () => {
     console.log('Login:', { email, password });
+    showToast('success', 'Sesión iniciada correctamente');
     // Navegar directamente al home sin validación por ahora
-    router.replace('/(tabs)/home');
+    setTimeout(() => router.replace('/(tabs)/home'), 600);
   };
 
   return (
     <View style={styles.root}>
+      {ToastComponent}
       {/* Wave background */}
       <WaveHeader height={345} />
 

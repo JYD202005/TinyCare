@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export const babyMonitorSchema = appSchema({
-  version: 1,
+  version: 2,
   tables: [
     // --- 1. ESTRUCTURA PRINCIPAL ---
     tableSchema({
@@ -133,6 +133,20 @@ export const babyMonitorSchema = appSchema({
         { name: 'especialidad_medico', type: 'string', isOptional: true },
         { name: 'fecha_cita', type: 'number', isIndexed: true },
         { name: 'notas', type: 'string', isOptional: true },
+        { name: 'deleted_at', type: 'number', isOptional: true },
+      ]
+    }),
+    // --- 6. DISPOSITIVOS Y SENSORES (ESP32 / Bluefruit) ---
+    tableSchema({
+      name: 'dispositivos',
+      columns: [
+        { name: 'id_perfil', type: 'string', isIndexed: true },
+        { name: 'identificador_hardware', type: 'string', isIndexed: true },
+        { name: 'nombre', type: 'string' },
+        { name: 'tipo_controlador', type: 'string' }, // 'ESP32', 'Bluefruit', etc.
+        { name: 'estado', type: 'string' }, // 'activo', 'desconectado', 'error'
+        { name: 'sensores_config_json', type: 'string' }, // Configuración de sub-sensores
+        { name: 'ultima_conexion', type: 'number' },
         { name: 'deleted_at', type: 'number', isOptional: true },
       ]
     }),

@@ -14,6 +14,7 @@ import { NativeModules } from 'react-native'
 
 import { babyMonitorSchema } from './schema'
 import { models } from './models'
+import migrations from './migrations'
 
 // WMDatabaseBridge solo existe cuando el módulo nativo fue compilado
 // (dev client via EAS, o producción). En Expo Go NO está disponible.
@@ -26,6 +27,7 @@ function createAdapter() {
     console.log('[DB] Using SQLiteAdapter (native)')
     return new SQLiteAdapter({
       schema: babyMonitorSchema,
+      migrations,
       // JSI desactivado: incompatible con New Architecture (Fabric) en Hermes.
       jsi: false,
       onSetUpError: (error: any) => {
@@ -41,6 +43,7 @@ function createAdapter() {
   const LokiJSAdapter = require('@nozbe/watermelondb/adapters/lokijs').default
   return new LokiJSAdapter({
     schema: babyMonitorSchema,
+    migrations,
     useWebWorker: false,
     useIncrementalIndexedDB: false,
   })

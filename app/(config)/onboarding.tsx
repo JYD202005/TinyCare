@@ -10,6 +10,7 @@ import {
   Image,
   Switch,
   Modal,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,11 +19,12 @@ import { useDatabase } from '@/src/database/context';
 // on Hermes (RN 0.81+) because it mutates a frozen global Event prototype.
 // Replaced with a pure-RN formatted text input.
 
-import WaveHeader from '../components/WaveHeader';
-import PillInput from '../components/PillInput';
-import ComboDatePicker from '../components/ComboDatePicker';
-import GradientButton from '../components/GradientButton';
-import { TC } from '../components/theme';
+import WaveHeader from '@/components/WaveHeader';
+import PillInput from '@/components/PillInput';
+import ComboDatePicker from '@/components/ComboDatePicker';
+import GradientButton from '@/components/GradientButton';
+import { TC } from '@/components/theme';
+import { useToast } from '@/components/Toast';
 
 interface Bebe {
   id: number;
@@ -49,6 +51,7 @@ const EMOJI_CATEGORIES = [
 
 export default function Onboarding() {
   const database = useDatabase();
+  const { showToast, ToastComponent } = useToast();
   const [step, setStep] = useState(1);
   const [bebes, setBebes] = useState<Bebe[]>([{ 
     id: 1, nombre: '', avatar: '❤️', fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, mostrarAvanzado: false 
@@ -73,6 +76,21 @@ export default function Onboarding() {
   };
 
   const guardarDatos = async () => {
+    // Validar fechas futuras antes de guardar
+    for (let i = 0; i < bebes.length; i++) {
+      const bebe = bebes[i];
+      if (bebe.fechaNacimiento) {
+        const parts = bebe.fechaNacimiento.split('/');
+        if (parts.length === 3) {
+          const dateObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+          if (dateObj > new Date()) {
+            showToast("warning", `La fecha de nacimiento para el bebé ${bebe.nombre || (i+1)} no puede ser en el futuro.`);
+            return;
+          }
+        }
+      }
+    }
+
     try {
       await database.write(async () => {
         for (const bebe of bebes) {
@@ -122,11 +140,13 @@ export default function Onboarding() {
       setShowSuccessModal(true);
     } catch (error) {
       console.error("Error guardando datos iniciales", error);
+      showToast("error", "Hubo un error al guardar los datos del bebé.");
     }
   };
 
   return (
     <View style={styles.root}>
+      {ToastComponent}
       <WaveHeader height={300} />
 
       <KeyboardAvoidingView
@@ -142,7 +162,7 @@ export default function Onboarding() {
           <View style={styles.logoArea}>
             <View style={styles.logoCircle}>
               <Image 
-                source={require('../assets/logo.jpeg')} 
+                source={require('@/assets/logo.jpeg')} 
                 style={{ width: 128, height: 128, marginTop: 18 }} 
                 resizeMode="cover" 
               />

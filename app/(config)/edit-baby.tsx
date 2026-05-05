@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { TC } from "../components/theme";
-import ComboDatePicker from "../components/ComboDatePicker";
-import { useToast } from "../components/Toast";
-import { database } from "../src/database";
-import { Perfil, DatosPersonales, SaludContexto, Cuidador, Emergencia } from "../src/database/models";
+import { TC } from "@/components/theme";
+import ComboDatePicker from "@/components/ComboDatePicker";
+import { useToast } from "@/components/Toast";
+import { database } from "@/src/database";
+import { Perfil, DatosPersonales, SaludContexto, Cuidador, Emergencia } from "@/src/database/models";
 
 const FloatingInput = ({ value, onChangeText, placeholder, keyboardType, style, containerStyle, maxLength }: any) => {
   const isFocusedOrFilled = Boolean(value && value.toString().length > 0);
@@ -177,6 +177,19 @@ export default function EditBabyScreen() {
       showToast('warning', 'El apellido paterno no puede estar vacío.');
       return;
     }
+    let fechaParsed = Date.now();
+    if (fechaNacimiento) {
+      const parts = fechaNacimiento.split('/');
+      if (parts.length === 3) {
+        const dateObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        if (dateObj > new Date()) {
+          showToast('warning', 'La fecha de nacimiento no puede ser en el futuro.');
+          return;
+        }
+        fechaParsed = dateObj.getTime();
+      }
+    }
+
     try {
       await database.write(async () => {
         // 1. Actualizar Perfil
@@ -184,15 +197,6 @@ export default function EditBabyScreen() {
           p.nombreIdentificador = nombre.trim();
           p.avatar = avatar.trim() || '❤️';
         });
-
-        // Parse DD/MM/YYYY to timestamp
-        let fechaParsed = Date.now();
-        if (fechaNacimiento) {
-          const parts = fechaNacimiento.split('/');
-          if (parts.length === 3) {
-            fechaParsed = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
-          }
-        }
 
         // 2. Actualizar o CREAR DatosPersonales si no existen
         if (datosPersonales) {

@@ -25,7 +25,7 @@ import DashboardCard, {
   VitalType,
 } from "../../components/DashboardCard";
 import { database } from "../../src/database";
-import { Perfil } from "../../src/database/models";
+import { Perfil, Dispositivo } from "../../src/database/models";
 import { useFocusEffect } from "@react-navigation/native";
 
 // ─── Trend Data (mock per vital) ─────────────────────────────────────────────
@@ -199,14 +199,21 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       const perfilesCollection = database.collections.get<Perfil>('perfiles');
-      const subscription = perfilesCollection.query().observe().subscribe((perfiles) => {
+      const dispositivosCollection = database.collections.get<Dispositivo>('dispositivos');
+
+      const subscription = perfilesCollection.query().observe().subscribe(async (perfiles) => {
         if (perfiles.length > 0) {
-          const loadedBabies = perfiles.map((p) => ({
-            id: p.id,
-            name: p.nombreIdentificador || 'Bebé',
-            emoji: p.avatar || '👶🏻',
-            connected: false,
-          }));
+          const allDevices = await dispositivosCollection.query().fetch();
+          
+          const loadedBabies = perfiles.map((p) => {
+            const hasDevice = allDevices.find(d => d.idPerfil === p.id);
+            return {
+              id: p.id,
+              name: p.nombreIdentificador || 'Bebé',
+              emoji: p.avatar || '👶🏻',
+              connected: hasDevice ? hasDevice.estado === 'activo' : false,
+            };
+          });
           setBabies(loadedBabies);
           setActiveBabyIndex(prev => prev >= loadedBabies.length ? 0 : prev);
         } else {
@@ -295,7 +302,11 @@ export default function HomeScreen() {
                <Text style={styles.bleTitle}>Sensor Desconectado</Text>
                <Text style={styles.bleSub}>Vincular monitor para {activeBaby.name}</Text>
              </View>
-             <TouchableOpacity style={styles.bleBtn} activeOpacity={0.8}>
+             <TouchableOpacity 
+               style={styles.bleBtn} 
+               activeOpacity={0.8}
+               onPress={() => router.push('/sensor-management')}
+             >
                <Text style={styles.bleBtnText}>Vincular</Text>
              </TouchableOpacity>
           </View>
@@ -308,7 +319,11 @@ export default function HomeScreen() {
                <Text style={styles.bleTitleConnected}>Monitor Conectado</Text>
                <Text style={styles.bleSub}>Recibiendo datos de {activeBaby.name}</Text>
              </View>
-             <TouchableOpacity style={styles.bleBtnOutline} activeOpacity={0.8}>
+             <TouchableOpacity 
+               style={styles.bleBtnOutline} 
+               activeOpacity={0.8}
+               onPress={() => router.push('/sensor-management')}
+             >
                <Text style={styles.bleBtnOutlineText}>Ajustes</Text>
              </TouchableOpacity>
           </View>

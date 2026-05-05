@@ -6,6 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { TC } from "../../components/theme";
+import { useToast } from "../../components/Toast";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -303,7 +304,8 @@ const CartModal: React.FC<{
   cart: CartItem[];
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemove: (id: string) => void;
-}> = ({ visible, onClose, cart, onUpdateQuantity, onRemove }) => {
+  onCheckout: () => void;
+}> = ({ visible, onClose, cart, onUpdateQuantity, onRemove, onCheckout }) => {
   const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ''), 10);
   const total = cart.reduce((sum, item) => sum + parsePrice(item.product.price) * item.quantity, 0);
 
@@ -359,10 +361,7 @@ const CartModal: React.FC<{
                   <Text style={cartStyles.totalLabel}>Total a pagar:</Text>
                   <Text style={cartStyles.totalAmount}>${total.toLocaleString('es-MX')} MXN</Text>
                 </View>
-                <TouchableOpacity style={modal.cta} activeOpacity={0.8} onPress={() => {
-                  Alert.alert("Checkout", "Redirigiendo a pasarela de pago...");
-                  onClose();
-                }}>
+                <TouchableOpacity style={modal.cta} activeOpacity={0.8} onPress={onCheckout}>
                   <Text style={modal.ctaText}>Proceder al Pago</Text>
                   <Ionicons name="arrow-forward" size={18} color="#FFF" style={{ marginLeft: 8 }} />
                 </TouchableOpacity>
@@ -378,6 +377,7 @@ const CartModal: React.FC<{
 // ─── Store Screen ────────────────────────────────────────────────────────────
 
 export default function StoreScreen() {
+  const { showToast, ToastComponent } = useToast();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -415,6 +415,7 @@ export default function StoreScreen() {
 
   return (
     <View style={s.root}>
+      {ToastComponent}
       <Animated.ScrollView
         contentContainerStyle={s.scroll}
         showsVerticalScrollIndicator={false}
@@ -513,6 +514,11 @@ export default function StoreScreen() {
         cart={cart}
         onUpdateQuantity={handleUpdateQuantity}
         onRemove={handleRemoveFromCart}
+        onCheckout={() => {
+          showToast('success', 'Redirigiendo a pasarela de pago...');
+          setIsCartVisible(false);
+          setCart([]);
+        }}
       />
     </View>
   );

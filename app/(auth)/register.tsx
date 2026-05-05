@@ -15,6 +15,7 @@ import WaveHeader from '../../components/WaveHeader';
 import PillInput from '../../components/PillInput';
 import GradientButton from '../../components/GradientButton';
 import { TC } from '../../components/theme';
+import { useToast } from '../../components/Toast';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const { showToast, ToastComponent } = useToast();
 
   const handleRegister = () => {
     console.log('Register:', {
@@ -36,12 +38,14 @@ export default function RegisterScreen() {
       password,
       acceptTerms,
     });
+    showToast('success', 'Cuenta creada correctamente');
     // Navegar directamente al home sin validación por ahora
-    router.replace('/(tabs)/home');
+    setTimeout(() => router.replace('/(tabs)/home'), 600);
   };
 
   return (
     <View style={styles.root}>
+      {ToastComponent}
       {/* Wave background */}
       <WaveHeader height={300} flip={true} />
 

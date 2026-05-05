@@ -7,6 +7,7 @@ import TelemetriaCruda from './TelemetriaCruda'
 import TelemetriaResumen from './TelemetriaResumen'
 import AlertaMedica from './AlertaMedica'
 import CitaPersonalizada from './CitaPersonalizada'
+import Dispositivo from './Dispositivo'
 
 export const models = [
   Perfil,
@@ -18,6 +19,7 @@ export const models = [
   TelemetriaResumen,
   AlertaMedica,
   CitaPersonalizada,
+  Dispositivo,
 ]
 
 export {
@@ -30,4 +32,5 @@ export {
   TelemetriaResumen,
   AlertaMedica,
   CitaPersonalizada,
+  Dispositivo,
 }
