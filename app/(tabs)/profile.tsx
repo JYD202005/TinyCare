@@ -1,51 +1,74 @@
-import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { TC } from "../../components/theme";
 import { useToast } from "../../components/Toast";
 import { database } from "../../src/database";
-import { Perfil, Dispositivo } from "../../src/database/models";
-import { useFocusEffect } from "@react-navigation/native";
+import { Dispositivo, Perfil } from "../../src/database/models";
 
 export default function ProfileScreen() {
-  const [babies, setBabies] = useState<{ id: string, name: string, emoji: string }[]>([]);
+  const [babies, setBabies] = useState<
+    { id: string; name: string; emoji: string }[]
+  >([]);
   const [pairedDevices, setPairedDevices] = useState<Dispositivo[]>([]);
   const { showToast, ToastComponent } = useToast();
 
   // Recargar cada vez que la pantalla gana foco (ej. al regresar de edit-baby)
   useFocusEffect(
     useCallback(() => {
-      const perfilesCollection = database.collections.get<Perfil>('perfiles');
-      const dispositivosCollection = database.collections.get<Dispositivo>('dispositivos');
+      const perfilesCollection = database.collections.get<Perfil>("perfiles");
+      const dispositivosCollection =
+        database.collections.get<Dispositivo>("dispositivos");
 
-      const sub1 = perfilesCollection.query().observe().subscribe((perfiles) => {
-        setBabies(perfiles.map(p => ({
-          id: p.id,
-          name: p.nombreIdentificador || 'Bebé',
-          emoji: p.avatar || '👶🏻',
-        })));
-      });
+      const sub1 = perfilesCollection
+        .query()
+        .observe()
+        .subscribe((perfiles) => {
+          setBabies(
+            perfiles.map((p) => ({
+              id: p.id,
+              name: p.nombreIdentificador || "Bebé",
+              emoji: p.avatar || "👶🏻",
+            })),
+          );
+        });
 
-      const sub2 = dispositivosCollection.query().observe().subscribe((dispositivos) => {
-        setPairedDevices(dispositivos);
-      });
+      const sub2 = dispositivosCollection
+        .query()
+        .observe()
+        .subscribe((dispositivos) => {
+          setPairedDevices(dispositivos);
+        });
 
       return () => {
         sub1.unsubscribe();
         sub2.unsubscribe();
       };
-    }, [])
+    }, []),
   );
 
   const handleLogout = () => {
     Alert.alert(
-      "Cerrar Sesión", 
+      "Cerrar Sesión",
       "¿Estás seguro de que deseas salir de tu cuenta en la nube? Tus datos locales se mantendrán seguros.",
       [
         { text: "Cancelar", style: "cancel" },
-        { text: "Salir", style: "destructive", onPress: () => showToast("success", "Sesión en la nube cerrada correctamente") }
-      ]
+        {
+          text: "Salir",
+          style: "destructive",
+          onPress: () =>
+            showToast("success", "Sesión en la nube cerrada correctamente"),
+        },
+      ],
     );
   };
 
@@ -54,13 +77,36 @@ export default function ProfileScreen() {
     router.push("/onboarding");
   };
 
-  const SettingRow = ({ icon, label, value, onPress, isDestructive = false }: any) => (
-    <TouchableOpacity style={styles.settingRow} activeOpacity={0.7} onPress={onPress}>
+  const SettingRow = ({
+    icon,
+    label,
+    value,
+    onPress,
+    isDestructive = false,
+  }: any) => (
+    <TouchableOpacity
+      style={styles.settingRow}
+      activeOpacity={0.7}
+      onPress={onPress}
+    >
       <View style={styles.settingLeft}>
-        <View style={[styles.settingIconBox, isDestructive && { backgroundColor: '#FEE2E2' }]}>
-          <Ionicons name={icon} size={20} color={isDestructive ? '#EF4444' : TC.accent} />
+        <View
+          style={[
+            styles.settingIconBox,
+            isDestructive && { backgroundColor: "#FEE2E2" },
+          ]}
+        >
+          <Ionicons
+            name={icon}
+            size={20}
+            color={isDestructive ? "#EF4444" : TC.accent}
+          />
         </View>
-        <Text style={[styles.settingLabel, isDestructive && { color: '#EF4444' }]}>{label}</Text>
+        <Text
+          style={[styles.settingLabel, isDestructive && { color: "#EF4444" }]}
+        >
+          {label}
+        </Text>
       </View>
       <View style={styles.settingRight}>
         {value && <Text style={styles.settingValue}>{value}</Text>}
@@ -72,13 +118,13 @@ export default function ProfileScreen() {
   return (
     <View style={styles.root}>
       {ToastComponent}
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Header ── */}
         <View style={styles.header}>
-          <Text style={styles.title}>Configuración</Text>
+          <Text style={styles.title}>Perfil</Text>
         </View>
 
         {/* ── Cloud Account Section ── */}
@@ -89,7 +135,9 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.cloudTextContainer}>
               <Text style={styles.cloudTitle}>Modo Local Activo</Text>
-              <Text style={styles.cloudSub}>Los datos solo existen en tu dispositivo.</Text>
+              <Text style={styles.cloudSub}>
+                Los datos solo existen en tu dispositivo.
+              </Text>
             </View>
           </View>
           <TouchableOpacity style={styles.cloudBtn} activeOpacity={0.8}>
@@ -100,14 +148,20 @@ export default function ProfileScreen() {
         {/* ── My Babies Section ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Mis Bebés</Text>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.babiesScroll}>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.babiesScroll}
+          >
             {babies.map((b) => (
-              <TouchableOpacity 
-                key={b.id} 
-                style={styles.babyCard} 
+              <TouchableOpacity
+                key={b.id}
+                style={styles.babyCard}
                 activeOpacity={0.8}
-                onPress={() => router.push({ pathname: '/edit-baby', params: { id: b.id } })}
+                onPress={() =>
+                  router.push({ pathname: "/edit-baby", params: { id: b.id } })
+                }
               >
                 <View style={styles.babyEmojiBox}>
                   <Text style={styles.babyEmoji}>{b.emoji}</Text>
@@ -117,7 +171,11 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ))}
 
-            <TouchableOpacity style={styles.babyAddCard} activeOpacity={0.8} onPress={handleAddBaby}>
+            <TouchableOpacity
+              style={styles.babyAddCard}
+              activeOpacity={0.8}
+              onPress={handleAddBaby}
+            >
               <View style={styles.babyAddIconBox}>
                 <Ionicons name="add" size={32} color={TC.accent} />
               </View>
@@ -130,16 +188,28 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>General</Text>
           <View style={styles.cardGroup}>
-            <SettingRow icon="notifications" label="Notificaciones Médicas" value="Activadas" />
-            <View style={styles.divider} />
-            <SettingRow 
-              icon="bluetooth" 
-              label="Gestión de Sensores" 
-              value={pairedDevices.length > 0 ? `${pairedDevices.length} Vinculado${pairedDevices.length > 1 ? 's' : ''}` : 'Sin Vincular'} 
-              onPress={() => router.push('/sensor-management')}
+            <SettingRow
+              icon="notifications"
+              label="Notificaciones Médicas"
+              value="Activadas"
             />
             <View style={styles.divider} />
-            <SettingRow icon="share-social" label="Familia y Cuidadores" value="Invitar" />
+            <SettingRow
+              icon="bluetooth"
+              label="Gestión de Sensores"
+              value={
+                pairedDevices.length > 0
+                  ? `${pairedDevices.length} Vinculado${pairedDevices.length > 1 ? "s" : ""}`
+                  : "Sin Vincular"
+              }
+              onPress={() => router.push("/sensor-management")}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="share-social"
+              label="Familia y Cuidadores"
+              value="Invitar"
+            />
           </View>
         </View>
 
@@ -154,12 +224,18 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <View style={styles.cardGroup}>
-            <SettingRow icon="log-out" label="Cerrar Sesión" isDestructive={true} onPress={handleLogout} />
+            <SettingRow
+              icon="log-out"
+              label="Cerrar Sesión"
+              isDestructive={true}
+              onPress={handleLogout}
+            />
           </View>
         </View>
 
-        <Text style={styles.versionText}>TinyCare v1.0.0 (InnovaTecNM 2026)</Text>
-
+        <Text style={styles.versionText}>
+          TinyCare v1.0.0 (InnovaTecNM 2026)
+        </Text>
       </ScrollView>
     </View>
   );
@@ -184,11 +260,11 @@ const styles = StyleSheet.create({
     color: TC.textDark,
     letterSpacing: -0.8,
   },
-  
+
   /* Cloud Card */
   cloudCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: TC.accentLight,
     borderRadius: 24,
     padding: 16,
@@ -199,17 +275,17 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   cloudLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   cloudAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 14,
     elevation: 2,
     shadowColor: TC.shadow,
@@ -219,14 +295,14 @@ const styles = StyleSheet.create({
   },
   cloudTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textDark,
     marginBottom: 2,
   },
   cloudSub: {
     fontSize: 13,
     color: TC.textBody,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   cloudTextContainer: {
     flex: 1,
@@ -238,8 +314,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   cloudBtnText: {
-    color: '#FFF',
-    fontWeight: '700',
+    color: "#FFF",
+    fontWeight: "700",
     fontSize: 14,
   },
 
@@ -266,7 +342,7 @@ const styles = StyleSheet.create({
     backgroundColor: TC.card,
     borderRadius: 24,
     padding: 20,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
@@ -281,8 +357,8 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     backgroundColor: TC.accentLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 12,
   },
   babyEmoji: {
@@ -290,39 +366,39 @@ const styles = StyleSheet.create({
   },
   babyName: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textDark,
     marginBottom: 4,
   },
   babyEdit: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     color: TC.accent,
   },
   babyAddCard: {
     width: 140,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderRadius: 24,
     padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
     borderColor: TC.inputBorder,
-    borderStyle: 'dashed',
+    borderStyle: "dashed",
     borderCurve: "continuous" as any,
   },
   babyAddIconBox: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 12,
   },
   babyAddText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textMuted,
   },
 
@@ -332,43 +408,43 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: TC.inputBorder,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderCurve: "continuous" as any,
   },
   settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
     backgroundColor: TC.card,
   },
   settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   settingIconBox: {
     width: 36,
     height: 36,
     borderRadius: 12,
     backgroundColor: TC.accent + "15",
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 14,
     borderCurve: "continuous" as any,
   },
   settingLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: TC.textDark,
   },
   settingRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   settingValue: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: "500",
     color: TC.textMuted,
   },
   divider: {
@@ -376,14 +452,14 @@ const styles = StyleSheet.create({
     backgroundColor: TC.inputBorder,
     marginLeft: 66, // Align with text
   },
-  
+
   /* Footer */
   versionText: {
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: "500",
     color: TC.textMuted,
     marginTop: 20,
     marginBottom: 40,
-  }
+  },
 });

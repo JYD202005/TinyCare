@@ -56,6 +56,24 @@ export default function SensorManagement() {
   const startScan = () => {
     setDevices([]);
     setScanning(true);
+
+    // Simulador Web / Entorno de Desarrollo para poder probar sin hardware real
+    if (Platform.OS === 'web' || __DEV__) {
+      setTimeout(() => {
+        setDevices(prev => {
+          if (prev.find(d => d.id === 'SIM-ESP32-8A9C')) return prev;
+          return [...prev, { id: 'SIM-ESP32-8A9C', name: 'Simulador ESP32-TinyCare' }];
+        });
+      }, 1500);
+      
+      setTimeout(() => {
+        setDevices(prev => {
+          if (prev.find(d => d.id === 'SIM-BLUE-11B2')) return prev;
+          return [...prev, { id: 'SIM-BLUE-11B2', name: 'Bluefruit SmartBaby' }];
+        });
+      }, 3500);
+    }
+
     adapter.startScanning((device) => {
       setDevices(prev => {
         if (prev.find(d => d.id === device.id)) return prev;

@@ -2,8 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Modal, Pressable, Animated, TextInput, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
-import * as MailComposer from "expo-mail-composer";
+let MailComposer: any = null;
+try {
+  MailComposer = require("expo-mail-composer");
+} catch (e) {
+  console.warn("ExpoMailComposer is not available", e);
+}
 import { TC } from "../../components/theme";
+import { useToast } from "../../components/Toast";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const IS_SMALL = SCREEN_W < 380;
@@ -288,7 +294,7 @@ const METRICS = [
 ];
 
 /* ── Send to Pediatrician ── */
-const SendToPediatrician = ({ metrics, period }: { metrics: typeof METRICS; period: string }) => {
+const SendToPediatrician = ({ metrics, period, showToast }: { metrics: typeof METRICS; period: string; showToast: any }) => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -309,14 +315,19 @@ const SendToPediatrician = ({ metrics, period }: { metrics: typeof METRICS; peri
     ]).start();
 
     try {
+      if (!MailComposer) {
+        showToast("warning", "El módulo de correo no está disponible.");
+        setSending(false);
+        return;
+      }
       const ok = await MailComposer.isAvailableAsync();
-      if (!ok) { Alert.alert("Sin correo", "No hay app de correo en este dispositivo."); setSending(false); return; }
+      if (!ok) { showToast("warning", "No hay app de correo en este dispositivo."); setSending(false); return; }
       await MailComposer.composeAsync({
         recipients: [], // TODO: inyectar correo del pediatra asignado
         subject: `Reporte Pediátrico TinyCare — ${new Date().toLocaleDateString("es-MX")}`,
         body,
       });
-    } catch { Alert.alert("Error", "No se pudo abrir el correo."); }
+    } catch { showToast("error", "No se pudo abrir el correo."); }
     setSending(false);
   };
 
@@ -388,42 +399,61 @@ const shiftArray = (arr: number[], delta: () => number) => {
   return next;
 };
 
+import { evaluateBiometrics } from '../../src/services/notifications/MonitoringService';
+
 export default function StatsScreen() {
+  const { showToast, ToastComponent } = useToast();
   const [period, setPeriod] = useState<"24H" | "7D">("24H");
   const [selectedMetric, setSelectedMetric] = useState<any>(null);
   const [liveMetrics, setLiveMetrics] = useState(METRICS);
 
   // Simulate live telemetry every 3s
   useEffect(() => {
+    let ticks = 0;
     const timer = setInterval(() => {
-      setLiveMetrics(prev => prev.map(m => {
-        switch (m.id) {
-          case 'spo2': {
-            const v = randBetween(95, 99);
-            return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-1, 1)), insights: [{ label: 'Promedio', value: `${randBetween(96, 98)}%` }, m.insights[1]] };
+      ticks++;
+      // Every ~10 ticks, force an anomaly to test notifications
+      const forceAnomaly = ticks % 10 === 0;
+
+      setLiveMetrics(prev => {
+        let simulatedData: any = { heartRate: 0, respiratoryRate: 0, oxygenSaturation: 0, temperature: 0 };
+        
+        const newMetrics = prev.map(m => {
+          switch (m.id) {
+            case 'spo2': {
+              const v = forceAnomaly ? randBetween(85, 92) : randBetween(95, 99);
+              simulatedData.oxygenSaturation = v;
+              return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-1, 1)), insights: [{ label: 'Promedio', value: `${randBetween(96, 98)}%` }, m.insights[1]] };
+            }
+            case 'hr': {
+              const v = forceAnomaly ? randBetween(175, 205) : randBetween(105, 125);
+              simulatedData.heartRate = v;
+              return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-4, 4)), insights: [{ label: 'Promedio', value: String(randBetween(108, 118)) }, m.insights[1]] };
+            }
+            case 'temp': {
+              const v = forceAnomaly ? randBetween(39.0, 40.0, 1) : randBetween(36.3, 36.9, 1);
+              simulatedData.temperature = v;
+              return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-0.2, 0.2, 1)), insights: [{ label: 'Promedio', value: String(randBetween(36.4, 36.7, 1)) }, m.insights[1]] };
+            }
+            case 'posture': {
+              const v = randBetween(70, 95);
+              const side = 100 - v;
+              return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-5, 5)), insights: [{ label: 'Boca arriba', value: `${v}%` }, { label: 'De lado', value: `${side}%` }] };
+            }
+            default: return m;
           }
-          case 'hr': {
-            const v = randBetween(105, 125);
-            return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-4, 4)), insights: [{ label: 'Promedio', value: String(randBetween(108, 118)) }, m.insights[1]] };
-          }
-          case 'temp': {
-            const v = randBetween(36.3, 36.9, 1);
-            return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-0.2, 0.2, 1)), insights: [{ label: 'Promedio', value: String(randBetween(36.4, 36.7, 1)) }, m.insights[1]] };
-          }
-          case 'posture': {
-            const v = randBetween(70, 95);
-            const side = 100 - v;
-            return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-5, 5)), insights: [{ label: 'Boca arriba', value: `${v}%` }, { label: 'De lado', value: `${side}%` }] };
-          }
-          default: return m;
-        }
-      }));
+        });
+
+        evaluateBiometrics(simulatedData);
+        return newMetrics;
+      });
     }, 3000);
     return () => clearInterval(timer);
   }, []);
 
   return (
     <View style={s.root}>
+      {ToastComponent}
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         
         <View style={s.header}>
@@ -469,7 +499,7 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        <SendToPediatrician metrics={liveMetrics} period={period} />
+        <SendToPediatrician metrics={liveMetrics} period={period} showToast={showToast} />
 
       </ScrollView>
 

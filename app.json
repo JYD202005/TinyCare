@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "tinycare",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -64,6 +64,14 @@
               ]
             }
           }
+        }
+      ],
+      "expo-mail-composer",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#E6F4FE"
         }
       ]
     ],

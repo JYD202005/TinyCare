@@ -1,8 +1,20 @@
 import { BleManager, Device } from 'react-native-ble-plx';
 import { Buffer } from 'buffer';
-import { BleAdapter, BleDevice, Biometrics, SENSOR_UUIDS } from './bleService';
+import { BleAdapter, BleDevice, Biometrics, SENSOR_UUIDS } from './bleTypes';
+import { NativeModules } from 'react-native';
+import { evaluateBiometrics, notifyHardwareStatus } from '../notifications/MonitoringService';
 
-const manager = new BleManager();
+let manager: BleManager | null = null;
+try {
+  if (NativeModules.BleClientManager) {
+    manager = new BleManager();
+  } else {
+    console.warn('BleClientManager native module not available. BLE will not work.');
+  }
+} catch (e) {
+  console.warn('Error initializing BleManager', e);
+}
+
 // Caché en memoria para evitar problemas escaneando dispositivos ya encontrados
 const scannedDevices = new Map<string, Device>();
 
@@ -11,19 +23,28 @@ const createBleDevice = (device: Device): BleDevice => {
     id: device.id,
     name: device.name,
     connect: async () => {
+      if (!manager) return;
       const connectedDevice = await manager.connectToDevice(device.id);
       await connectedDevice.discoverAllServicesAndCharacteristics();
+      notifyHardwareStatus('connected');
     },
     disconnect: async () => {
+      if (!manager) return;
       await manager.cancelDeviceConnection(device.id);
+      notifyHardwareStatus('disconnected');
     },
     subscribe: async (onUpdate) => {
+      if (!manager) return;
       manager.monitorCharacteristicForDevice(
         device.id,
         SENSOR_UUIDS.TINYCARE_SERVICE,
         SENSOR_UUIDS.BIOMETRICS_CHAR,
         (error, characteristic) => {
-          if (error || !characteristic?.value) return;
+          if (error) {
+            if (error.errorCode === 201) notifyHardwareStatus('disconnected');
+            return;
+          }
+          if (!characteristic?.value) return;
 
           // RN nos da el valor en Base64. Lo pasamos a Buffer para leer los bytes.
           const buffer = Buffer.from(characteristic.value, 'base64');
@@ -35,25 +56,30 @@ const createBleDevice = (device: Device): BleDevice => {
           const tempInt = buffer.length > 3 ? buffer.readUInt8(3) : 0;
           const tempDec = buffer.length > 4 ? buffer.readUInt8(4) : 0;
 
-          onUpdate({
+          const data: Biometrics = {
             heartRate,
             respiratoryRate,
             oxygenSaturation,
             temperature: tempInt + (tempDec / 100)
-          });
+          };
+
+          // Analizar signos vitales y disparar alertas en background/foreground
+          evaluateBiometrics(data);
+          onUpdate(data);
         }
       );
     },
     unsubscribe: async () => {
-       // Para cancelar en ble-plx, usualmente cancelas la transacción
-       // O manejas un identificador de transacción. 
-       // Simplificamos asumiendo que al desconectar, se detiene la suscripción.
     }
   };
 };
 
 export const adapter: BleAdapter = {
   startScanning: (onDeviceFound) => {
+    if (!manager) {
+      console.warn("BleManager not initialized. Cannot scan.");
+      return;
+    }
     manager.startDeviceScan(null, null, (error, device) => {
       if (error) {
         console.error('Error escaneando nativo:', error);
@@ -70,10 +96,11 @@ export const adapter: BleAdapter = {
     });
   },
   stopScanning: () => {
+    if (!manager) return;
     manager.stopDeviceScan();
   },
   connectToDevice: async (deviceId?: string) => {
-    if (!deviceId) return null;
+    if (!deviceId || !manager) return null;
     try {
       const connectedDevice = await manager.connectToDevice(deviceId);
       await connectedDevice.discoverAllServicesAndCharacteristics();

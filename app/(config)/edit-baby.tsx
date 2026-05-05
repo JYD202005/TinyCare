@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, Modal } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, Modal, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { TC } from "@/components/theme";
 import ComboDatePicker from "@/components/ComboDatePicker";
 import { useToast } from "@/components/Toast";
 import { database } from "@/src/database";
-import { Perfil, DatosPersonales, SaludContexto, Cuidador, Emergencia } from "@/src/database/models";
+import { Perfil, DatosPersonales, SaludContexto, Cuidador, Emergencia, Dispositivo } from "@/src/database/models";
 
 const FloatingInput = ({ value, onChangeText, placeholder, keyboardType, style, containerStyle, maxLength }: any) => {
   const isFocusedOrFilled = Boolean(value && value.toString().length > 0);
@@ -69,6 +69,7 @@ export default function EditBabyScreen() {
 
   // Cuidadores
   const [cuidadoresList, setCuidadoresList] = useState<Cuidador[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [cuidadorNombre, setCuidadorNombre] = useState('');
   const [cuidadorApellido, setCuidadorApellido] = useState('');
   const [cuidadorRol, setCuidadorRol] = useState('');
@@ -103,6 +104,14 @@ export default function EditBabyScreen() {
     if (!id) return;
     loadBabyData(id);
   }, [id]);
+
+  const safeBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/profile');
+    }
+  };
 
   const loadBabyData = async (perfilId: string) => {
     try {
@@ -157,9 +166,9 @@ export default function EditBabyScreen() {
 
       setLoading(false);
     } catch (e) {
-      console.error(e);
-      showToast('error', 'No se pudieron cargar los datos.');
-      router.back();
+      console.log('Error loading baby data:', e);
+      showToast('error', 'El perfil no existe o ha sido eliminado.');
+      safeBack();
     }
   };
 
@@ -253,10 +262,37 @@ export default function EditBabyScreen() {
         }
       });
       showToast('success', '¡Perfil guardado correctamente!');
-      setTimeout(() => router.back(), 800);
+      setTimeout(() => safeBack(), 800);
     } catch (e) {
       console.error('[handleSave]', e);
       showToast('error', 'Hubo un error al guardar los cambios.');
+    }
+  };
+
+  const handleDeleteProfile = () => {
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteProfile = async () => {
+    setShowDeleteModal(false);
+    try {
+      await database.write(async () => {
+         if (datosPersonales) await datosPersonales.destroyPermanently();
+         if (salud) await salud.destroyPermanently();
+         for (const em of emergenciasList) await em.destroyPermanently();
+         for (const cui of cuidadoresList) await cui.destroyPermanently();
+         
+         const dispositivos = await database.get<Dispositivo>('dispositivos').query().fetch();
+         const dispositivosBebe = dispositivos.filter(d => d.idPerfil === id);
+         for (const d of dispositivosBebe) await d.destroyPermanently();
+         
+         if (perfil) await perfil.destroyPermanently();
+      });
+      showToast("success", "Perfil eliminado correctamente");
+      safeBack();
+    } catch (e) {
+      console.error('[confirmDeleteProfile]', e);
+      showToast("error", "No se pudo eliminar el perfil");
     }
   };
 
@@ -416,12 +452,35 @@ export default function EditBabyScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* Toast banners — flotan sobre todo el contenido */}
       {ToastComponent}
+      
+      {/* Custom Delete Modal */}
+      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconBox}>
+              <Ionicons name="warning" size={32} color="#EF4444" />
+            </View>
+            <Text style={styles.modalTitle}>Eliminar Perfil</Text>
+            <Text style={styles.modalDesc}>
+              ¿Estás seguro de que deseas eliminar el perfil de {nombre || 'este bebé'}? Esta acción no se puede deshacer y borrará permanentemente todo su historial médico y dispositivos.
+            </Text>
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setShowDeleteModal(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalBtnDelete} onPress={confirmDeleteProfile}>
+                <Text style={styles.modalBtnDeleteText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.root}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={safeBack} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color={TC.textDark} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Expediente Detallado</Text>
@@ -796,6 +855,14 @@ export default function EditBabyScreen() {
             </View>
           </View>
 
+          {/* Zona de Peligro */}
+          <View style={[styles.section, { marginTop: 24 }]}>
+            <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteProfile}>
+              <Ionicons name="trash-outline" size={20} color="#FFF" />
+              <Text style={styles.deleteBtnText}>Eliminar Perfil del Bebé</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
@@ -973,5 +1040,87 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: TC.inputBorder
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#EF4444',
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  deleteBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 28,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+  } as any,
+  modalIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: TC.textDark,
+    marginBottom: 12,
+  },
+  modalDesc: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: TC.textBody,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalBtnCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  modalBtnCancelText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: TC.textDark,
+  },
+  modalBtnDelete: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+  },
+  modalBtnDeleteText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFF',
   },
 });
