@@ -70,7 +70,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/logo_sinfondo.ico",
+          "icon": "./assets/logo_sinfondo.png",
           "color": "#E6F4FE"
         }
       ]
