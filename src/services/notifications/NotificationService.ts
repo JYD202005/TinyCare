@@ -1,22 +1,34 @@
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 
-// Configuración de cómo se manejan las notificaciones en primer plano (foreground)
-// shouldShowBanner y shouldShowList son requeridos por NotificationBehavior en iOS 15+
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,   // Compatibilidad legacy
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,  // iOS 15+: muestra banner temporal
-    shouldShowList: true,    // iOS 15+: muestra en la lista de notificaciones
-  }),
-});
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+let Notifications: any = null;
+
+if (!isExpoGo) {
+  try {
+    Notifications = require("expo-notifications");
+
+    // Configuración de cómo se manejan las notificaciones en primer plano (foreground)
+    // shouldShowBanner y shouldShowList son requeridos por NotificationBehavior en iOS 15+
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,   // Compatibilidad legacy
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,  // iOS 15+: muestra banner temporal
+        shouldShowList: true,    // iOS 15+: muestra en la lista de notificaciones
+      }),
+    });
+  } catch (e) {
+    console.warn("expo-notifications module could not be loaded");
+  }
+}
 
 // ─── Canales Android ──────────────────────────────────────────────────────────
 
 export const setupNotificationChannels = async () => {
-  if (Platform.OS === "android") {
+  if (Platform.OS === "android" && Notifications) {
     // Canal Verde (Comunes) - Baja prioridad, silencioso
     await Notifications.setNotificationChannelAsync("comunes", {
       name: "Comunes",
@@ -57,6 +69,7 @@ export const setupNotificationChannels = async () => {
 // ─── Permisos ──────────────────────────────────────────────────────────────────
 
 export const requestNotificationPermissions = async (): Promise<boolean> => {
+  if (!Notifications) return false;
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
@@ -73,12 +86,13 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
   return true;
 };
 
-const scheduleNotification = async (request: Notifications.NotificationRequestInput) => {
+const scheduleNotification = async (request: any) => {
   if (Platform.OS === "web") {
     console.log("[Web Notification Mapped]", request.content.title, "-", request.content.body);
     // On web, we could also use the browser's Notification API if requested, but for now we fallback to console
     return;
   }
+  if (!Notifications) return;
   await Notifications.scheduleNotificationAsync(request);
 };
 

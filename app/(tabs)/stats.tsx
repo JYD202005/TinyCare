@@ -22,8 +22,10 @@ const MINI_CARD_W = (SCREEN_W - (PADDING_H * 2) - CARD_GAP) / 2;
 const MINI_CHART_W = MINI_CARD_W - (CARD_PADDING * 2); 
 
 const TrendChart = ({ data, color, height = 80, width, showDots = true }: { data: number[], color: string, height?: number, width: number, showDots?: boolean }) => {
-  const min = Math.min(...data) - (Math.max(...data) - Math.min(...data)) * 0.2;
-  const max = Math.max(...data) + (Math.max(...data) - Math.min(...data)) * 0.2;
+  const safeData = data.length === 0 ? [0, 0] : data.length === 1 ? [data[0], data[0]] : data;
+
+  const min = Math.min(...safeData) - (Math.max(...safeData) - Math.min(...safeData)) * 0.2;
+  const max = Math.max(...safeData) + (Math.max(...safeData) - Math.min(...safeData)) * 0.2;
   const range = max - min || 1;
   
   const paddingX = showDots ? 8 : 4;
@@ -31,9 +33,9 @@ const TrendChart = ({ data, color, height = 80, width, showDots = true }: { data
   const innerWidth = width - paddingX * 2;
   const innerHeight = height - paddingY * 2;
 
-  const stepX = innerWidth / Math.max(data.length - 1, 1);
+  const stepX = innerWidth / Math.max(safeData.length - 1, 1);
 
-  const pathData = data.map((val, i) => {
+  const pathData = safeData.map((val, i) => {
     const x = paddingX + i * stepX;
     const y = paddingY + innerHeight - ((val - min) / range) * innerHeight;
     return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
@@ -59,7 +61,7 @@ const TrendChart = ({ data, color, height = 80, width, showDots = true }: { data
           strokeLinecap="round" 
           strokeLinejoin="round" 
         />
-        {showDots && data.map((val, i) => (
+        {showDots && safeData.map((val, i) => (
           <Circle 
             key={i} 
             cx={paddingX + i * stepX} 

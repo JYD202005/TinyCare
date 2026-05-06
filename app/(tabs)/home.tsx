@@ -49,8 +49,11 @@ const MiniChart: React.FC<{ data: number[]; color: string }> = ({
   const max = Math.max(...data);
   const range = max - min || 1;
 
-  const points = data.map((v, i) => {
-    const x = PAD_X + (i / (data.length - 1)) * (W - PAD_X * 2);
+  // Handle case where data array has only 1 element to avoid division by zero
+  const safeData = data.length === 1 ? [data[0], data[0]] : data;
+
+  const points = safeData.map((v, i) => {
+    const x = PAD_X + (i / (safeData.length - 1)) * (W - PAD_X * 2);
     const y = H - PAD_Y - ((v - min) / range) * (H - PAD_Y * 2);
     return { x, y };
   });
