@@ -25,6 +25,7 @@ import ComboDatePicker from '@/components/ComboDatePicker';
 import GradientButton from '@/components/GradientButton';
 import { TC } from '@/components/theme';
 import { useToast } from '@/components/Toast';
+import { notifyCommon } from '@/src/services/notifications/NotificationService';
 
 interface Bebe {
   id: number;
@@ -92,9 +93,12 @@ export default function Onboarding() {
     }
 
     try {
+      const addedNames: string[] = [];
+
       await database.write(async () => {
         for (const bebe of bebes) {
           if (!bebe.nombre.trim()) continue;
+          addedNames.push(bebe.nombre.trim());
 
           const perfil = await database.get('perfiles').create((p: any) => {
             p.nombreIdentificador = bebe.nombre.trim();
@@ -134,9 +138,25 @@ export default function Onboarding() {
             s.diasDeVida = diasDeVida >= 0 ? diasDeVida : 0;
             s.edadGestacionalSemanas = bebe.esPrematuro ? (parseInt(bebe.semanasGestacion) || null) : null;
           });
+
+          await database.get('alertas_medicas').create((a: any) => {
+            a.idPerfil = perfil.id;
+            a.tipoAlerta = "Registro Exitoso";
+            a.nivel = "Info";
+            a.valorRegistrado = "";
+            a.mensajeMedico = `Bienvenido. El perfil de ${bebe.nombre.trim()} se ha creado correctamente.`;
+            a.timestampEvento = Date.now();
+            a.leida = false;
+            a.isSynced = false;
+          });
         }
       });
       
+      // Lanzar notificaciones fuera de la transacción de la DB
+      for (const name of addedNames) {
+        await notifyCommon("Nuevo bebé registrado", `El perfil de ${name} está listo en TinyCare.`);
+      }
+
       setShowSuccessModal(true);
     } catch (error) {
       console.error("Error guardando datos iniciales", error);

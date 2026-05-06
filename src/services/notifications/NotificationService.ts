@@ -73,11 +73,20 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
   return true;
 };
 
+const scheduleNotification = async (request: Notifications.NotificationRequestInput) => {
+  if (Platform.OS === "web") {
+    console.log("[Web Notification Mapped]", request.content.title, "-", request.content.body);
+    // On web, we could also use the browser's Notification API if requested, but for now we fallback to console
+    return;
+  }
+  await Notifications.scheduleNotificationAsync(request);
+};
+
 // ─── Notificaciones por tipo ──────────────────────────────────────────────────
 
 /** Aviso de estado normal / informativo */
 export const notifyCommon = async (title: string, body: string, data = {}) => {
-  await Notifications.scheduleNotificationAsync({
+  await scheduleNotification({
     content: {
       title: `💚 ${title}`,
       body,
@@ -90,7 +99,7 @@ export const notifyCommon = async (title: string, body: string, data = {}) => {
 
 /** Advertencia importante (batería, sensor, etc.) */
 export const notifyWarning = async (title: string, body: string, data = {}) => {
-  await Notifications.scheduleNotificationAsync({
+  await scheduleNotification({
     content: {
       title: `⚠️ ${title}`,
       body,
@@ -106,7 +115,7 @@ export const notifyWarning = async (title: string, body: string, data = {}) => {
 
 /** Emergencia médica - máxima prioridad */
 export const notifyEmergency = async (title: string, body: string, data = {}) => {
-  await Notifications.scheduleNotificationAsync({
+  await scheduleNotification({
     content: {
       title: `🚨 URGENCIA: ${title}`,
       body,
@@ -126,7 +135,7 @@ export const notifyEmergency = async (title: string, body: string, data = {}) =>
  * Se dispara cuando el sensor BLE pierde conexión con la app.
  */
 export const notifyESPDisconnected = async (babyName = "el bebé") => {
-  await Notifications.scheduleNotificationAsync({
+  await scheduleNotification({
     content: {
       title: "📡 Sensor Desconectado",
       body: `El monitor de ${babyName} se desconectó. Verifica el sensor BLE.`,
@@ -144,7 +153,7 @@ export const notifyESPDisconnected = async (babyName = "el bebé") => {
  * Notificación de ESP reconectado.
  */
 export const notifyESPReconnected = async (babyName = "el bebé") => {
-  await Notifications.scheduleNotificationAsync({
+  await scheduleNotification({
     content: {
       title: "✅ Sensor Reconectado",
       body: `El monitor de ${babyName} está activo y enviando datos.`,

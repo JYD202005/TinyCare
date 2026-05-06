@@ -1,4 +1,4 @@
-import { BleAdapter, BleDevice, Biometrics, SENSOR_UUIDS } from './bleService';
+import { BleAdapter, BleDevice, Biometrics, SENSOR_UUIDS } from './bleTypes';
 
 export const adapter: BleAdapter = {
   startScanning: (onDeviceFound) => {

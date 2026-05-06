@@ -1,35 +1,146 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TC } from "../../components/theme";
 import { useToast } from "../../components/Toast";
 import { database } from "../../src/database";
-import { Dispositivo, Perfil } from "../../src/database/models";
+import { Cuidador, Dispositivo, Perfil } from "../../src/database/models";
+import { useNotificationSettings } from "../../src/services/notifications/useNotificationSettings";
+
+// ─── SettingRow ───────────────────────────────────────────────────────────────
+
+const SettingRow = ({
+  icon,
+  iconColor = TC.accent,
+  iconBg = TC.accent + "15",
+  label,
+  sublabel,
+  value,
+  onPress,
+  isDestructive = false,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor?: string;
+  iconBg?: string;
+  label: string;
+  sublabel?: string;
+  value?: string;
+  onPress?: () => void;
+  isDestructive?: boolean;
+}) => (
+  <TouchableOpacity
+    style={styles.settingRow}
+    activeOpacity={onPress ? 0.7 : 1}
+    onPress={onPress}
+    disabled={!onPress}
+  >
+    <View style={styles.settingLeft}>
+      <View
+        style={[
+          styles.settingIconBox,
+          { backgroundColor: isDestructive ? "#FEE2E2" : iconBg },
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={20}
+          color={isDestructive ? "#EF4444" : iconColor}
+        />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text
+          style={[styles.settingLabel, isDestructive && { color: "#EF4444" }]}
+        >
+          {label}
+        </Text>
+        {sublabel ? (
+          <Text style={styles.settingSublabel}>{sublabel}</Text>
+        ) : null}
+      </View>
+    </View>
+    <View style={styles.settingRight}>
+      {value ? <Text style={styles.settingValue}>{value}</Text> : null}
+      {onPress ? (
+        <Ionicons name="chevron-forward" size={18} color={TC.textMuted} />
+      ) : null}
+    </View>
+  </TouchableOpacity>
+);
+
+// ─── SwitchRow ────────────────────────────────────────────────────────────────
+
+const SwitchRow = ({
+  icon,
+  iconColor,
+  iconBg,
+  label,
+  sublabel,
+  value,
+  onToggle,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  iconBg: string;
+  label: string;
+  sublabel?: string;
+  value: boolean;
+  onToggle: () => void;
+}) => (
+  <View style={styles.settingRow}>
+    <View style={styles.settingLeft}>
+      <View style={[styles.settingIconBox, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon} size={20} color={iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.settingLabel}>{label}</Text>
+        {sublabel ? (
+          <Text style={styles.settingSublabel}>{sublabel}</Text>
+        ) : null}
+      </View>
+    </View>
+    <Switch
+      value={value}
+      onValueChange={onToggle}
+      trackColor={{ false: "#E5E7EB", true: TC.vitalHeart + "60" }}
+      thumbColor={value ? TC.vitalHeart : "#D1D5DB"}
+      ios_backgroundColor="#E5E7EB"
+    />
+  </View>
+);
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
+  const { showToast, ToastComponent } = useToast();
+  const { settings, toggle } = useNotificationSettings();
+
   const [babies, setBabies] = useState<
     { id: string; name: string; emoji: string }[]
   >([]);
   const [pairedDevices, setPairedDevices] = useState<Dispositivo[]>([]);
-  const { showToast, ToastComponent } = useToast();
+  const [cuidadores, setCuidadores] = useState<Cuidador[]>([]);
 
-  // Recargar cada vez que la pantalla gana foco (ej. al regresar de edit-baby)
+  // ── Reactive data from DB ─────────────────────────────────────────────────
   useFocusEffect(
     useCallback(() => {
-      const perfilesCollection = database.collections.get<Perfil>("perfiles");
-      const dispositivosCollection =
+      const perfilesCol = database.collections.get<Perfil>("perfiles");
+      const dispositivosCol =
         database.collections.get<Dispositivo>("dispositivos");
+      const cuidadoresCol = database.collections.get<Cuidador>("cuidadores");
 
-      const sub1 = perfilesCollection
+      const sub1 = perfilesCol
         .query()
         .observe()
         .subscribe((perfiles) => {
@@ -38,85 +149,57 @@ export default function ProfileScreen() {
               id: p.id,
               name: p.nombreIdentificador || "Bebé",
               emoji: p.avatar || "👶🏻",
-            })),
+            }))
           );
         });
 
-      const sub2 = dispositivosCollection
+      const sub2 = dispositivosCol
         .query()
         .observe()
-        .subscribe((dispositivos) => {
-          setPairedDevices(dispositivos);
-        });
+        .subscribe(setPairedDevices);
+
+      const sub3 = cuidadoresCol
+        .query()
+        .observe()
+        .subscribe(setCuidadores);
 
       return () => {
         sub1.unsubscribe();
         sub2.unsubscribe();
+        sub3.unsubscribe();
       };
-    }, []),
+    }, [])
   );
 
   const handleLogout = () => {
     Alert.alert(
       "Cerrar Sesión",
-      "¿Estás seguro de que deseas salir de tu cuenta en la nube? Tus datos locales se mantendrán seguros.",
+      "¿Estás seguro de que deseas salir? Tus datos locales se mantendrán seguros.",
       [
         { text: "Cancelar", style: "cancel" },
         {
           text: "Salir",
           style: "destructive",
           onPress: () =>
-            showToast("success", "Sesión en la nube cerrada correctamente"),
+            showToast("success", "Sesión cerrada correctamente"),
         },
-      ],
+      ]
     );
   };
 
-  const handleAddBaby = () => {
-    // Redirigir al onboarding para agregar nuevo
-    router.push("/onboarding");
-  };
+  // Valores derivados
+  const deviceLabel =
+    pairedDevices.length > 0
+      ? `${pairedDevices.length} vinculado${pairedDevices.length > 1 ? "s" : ""}`
+      : "Sin vincular";
 
-  const SettingRow = ({
-    icon,
-    label,
-    value,
-    onPress,
-    isDestructive = false,
-  }: any) => (
-    <TouchableOpacity
-      style={styles.settingRow}
-      activeOpacity={0.7}
-      onPress={onPress}
-    >
-      <View style={styles.settingLeft}>
-        <View
-          style={[
-            styles.settingIconBox,
-            isDestructive && { backgroundColor: "#FEE2E2" },
-          ]}
-        >
-          <Ionicons
-            name={icon}
-            size={20}
-            color={isDestructive ? "#EF4444" : TC.accent}
-          />
-        </View>
-        <Text
-          style={[styles.settingLabel, isDestructive && { color: "#EF4444" }]}
-        >
-          {label}
-        </Text>
-      </View>
-      <View style={styles.settingRight}>
-        {value && <Text style={styles.settingValue}>{value}</Text>}
-        <Ionicons name="chevron-forward" size={18} color={TC.textMuted} />
-      </View>
-    </TouchableOpacity>
-  );
+  const cuidadoresLabel =
+    cuidadores.length > 0
+      ? `${cuidadores.length} contacto${cuidadores.length > 1 ? "s" : ""}`
+      : null; // null = no mostrar si no hay datos
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       {ToastComponent}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -127,7 +210,7 @@ export default function ProfileScreen() {
           <Text style={styles.title}>Perfil</Text>
         </View>
 
-        {/* ── Cloud Account Section ── */}
+        {/* ── Cloud Card ── */}
         <View style={styles.cloudCard}>
           <View style={styles.cloudLeft}>
             <View style={styles.cloudAvatar}>
@@ -145,10 +228,9 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── My Babies Section ── */}
+        {/* ── Mis Bebés ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Mis Bebés</Text>
-
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -166,7 +248,9 @@ export default function ProfileScreen() {
                 <View style={styles.babyEmojiBox}>
                   <Text style={styles.babyEmoji}>{b.emoji}</Text>
                 </View>
-                <Text style={styles.babyName}>{b.name}</Text>
+                <Text style={styles.babyName} numberOfLines={1}>
+                  {b.name}
+                </Text>
                 <Text style={styles.babyEdit}>Editar Perfil</Text>
               </TouchableOpacity>
             ))}
@@ -174,7 +258,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.babyAddCard}
               activeOpacity={0.8}
-              onPress={handleAddBaby}
+              onPress={() => router.push("/onboarding")}
             >
               <View style={styles.babyAddIconBox}>
                 <Ionicons name="add" size={32} color={TC.accent} />
@@ -184,35 +268,68 @@ export default function ProfileScreen() {
           </ScrollView>
         </View>
 
-        {/* ── Settings Sections ── */}
+        {/* ── General ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>General</Text>
           <View style={styles.cardGroup}>
-            <SettingRow
-              icon="notifications"
-              label="Notificaciones Médicas"
-              value="Activadas"
-            />
-            <View style={styles.divider} />
+            {/* Sensores — siempre visible porque gestión es útil */}
             <SettingRow
               icon="bluetooth"
+              iconColor="#6366F1"
+              iconBg="#EEF2FF"
               label="Gestión de Sensores"
-              value={
-                pairedDevices.length > 0
-                  ? `${pairedDevices.length} Vinculado${pairedDevices.length > 1 ? "s" : ""}`
-                  : "Sin Vincular"
-              }
+              value={deviceLabel}
               onPress={() => router.push("/sensor-management")}
             />
-            <View style={styles.divider} />
+
+            {/* Cuidadores — solo mostrar si hay alguno registrado */}
+            {cuidadoresLabel !== null && (
+              <>
+                <View style={styles.divider} />
+                <SettingRow
+                  icon="people"
+                  iconColor={TC.vitalHeart}
+                  iconBg={TC.vitalHeart + "15"}
+                  label="Familia y Cuidadores"
+                  value={cuidadoresLabel}
+                />
+              </>
+            )}
+          </View>
+        </View>
+
+        {/* ── Notificaciones ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notificaciones</Text>
+
+          {/* Info: sin sensor no hay alertas vitales */}
+          {pairedDevices.length === 0 && (
+            <View style={styles.infoBox}>
+              <Ionicons
+                name="information-circle-outline"
+                size={16}
+                color="#92400E"
+              />
+              <Text style={styles.infoBoxText}>
+                Sin sensor vinculado, las alertas de signos vitales no están
+                disponibles.
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.cardGroup}>
             <SettingRow
-              icon="share-social"
-              label="Familia y Cuidadores"
-              value="Invitar"
+              icon="notifications"
+              iconColor="#F59E0B"
+              iconBg="#FEF9EB"
+              label="Configuración de Notificaciones"
+              sublabel="Recordatorios, alertas médicas, sonidos y sensores"
+              onPress={() => router.push("/notifications-settings")}
             />
           </View>
         </View>
 
+        {/* ── Ayuda ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ayuda y Soporte</Text>
           <View style={styles.cardGroup}>
@@ -222,38 +339,35 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* ── Cerrar sesión ── */}
         <View style={styles.section}>
           <View style={styles.cardGroup}>
             <SettingRow
               icon="log-out"
               label="Cerrar Sesión"
-              isDestructive={true}
+              isDestructive
               onPress={handleLogout}
             />
           </View>
         </View>
 
-        <Text style={styles.versionText}>
-          TinyCare v1.0.0 (InnovaTecNM 2026)
-        </Text>
+        <Text style={styles.versionText}>TinyCare v1.0.0 (InnovaTecNM 2026)</Text>
       </ScrollView>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: TC.bg,
-  },
+  root: { flex: 1, backgroundColor: TC.bg },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 12,
     paddingBottom: 120,
   },
-  header: {
-    marginBottom: 24,
-  },
+
+  header: { marginBottom: 24 },
   title: {
     fontSize: 34,
     fontWeight: "800",
@@ -274,11 +388,7 @@ const styles = StyleSheet.create({
     borderCurve: "continuous" as any,
     gap: 16,
   },
-  cloudLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
+  cloudLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
   cloudAvatar: {
     width: 48,
     height: 48,
@@ -299,30 +409,18 @@ const styles = StyleSheet.create({
     color: TC.textDark,
     marginBottom: 2,
   },
-  cloudSub: {
-    fontSize: 13,
-    color: TC.textBody,
-    fontWeight: "500",
-  },
-  cloudTextContainer: {
-    flex: 1,
-  },
+  cloudSub: { fontSize: 13, color: TC.textBody, fontWeight: "500" },
+  cloudTextContainer: { flex: 1 },
   cloudBtn: {
     backgroundColor: TC.textDark,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
   },
-  cloudBtnText: {
-    color: "#FFF",
-    fontWeight: "700",
-    fontSize: 14,
-  },
+  cloudBtnText: { color: "#FFF", fontWeight: "700", fontSize: 14 },
 
   /* Sections */
-  section: {
-    marginBottom: 28,
-  },
+  section: { marginBottom: 28 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
@@ -332,11 +430,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
 
-  /* Babies Carousel */
-  babiesScroll: {
-    gap: 16,
-    paddingRight: 20, // To allow scrolling completely to the right
-  },
+  /* Babies */
+  babiesScroll: { gap: 16, paddingRight: 20 },
   babyCard: {
     width: 140,
     backgroundColor: TC.card,
@@ -361,20 +456,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 12,
   },
-  babyEmoji: {
-    fontSize: 32,
-  },
+  babyEmoji: { fontSize: 32 },
   babyName: {
     fontSize: 16,
     fontWeight: "700",
     color: TC.textDark,
     marginBottom: 4,
+    textAlign: "center",
   },
-  babyEdit: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: TC.accent,
-  },
+  babyEdit: { fontSize: 13, fontWeight: "600", color: TC.accent },
   babyAddCard: {
     width: 140,
     backgroundColor: "transparent",
@@ -396,13 +486,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 12,
   },
-  babyAddText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: TC.textMuted,
-  },
+  babyAddText: { fontSize: 15, fontWeight: "700", color: TC.textMuted },
 
-  /* Settings Group */
+  /* Settings */
   cardGroup: {
     backgroundColor: TC.card,
     borderRadius: 24,
@@ -421,36 +507,65 @@ const styles = StyleSheet.create({
   settingLeft: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
+    gap: 12,
   },
   settingIconBox: {
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: TC.accent + "15",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    flexShrink: 0,
     borderCurve: "continuous" as any,
   },
   settingLabel: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: TC.textDark,
+  },
+  settingSublabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: TC.textMuted,
+    lineHeight: 16,
+    marginTop: 1,
   },
   settingRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+    marginLeft: 8,
   },
   settingValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "500",
     color: TC.textMuted,
   },
   divider: {
     height: 1,
     backgroundColor: TC.inputBorder,
-    marginLeft: 66, // Align with text
+    marginLeft: 64,
+  },
+
+  /* Info box */
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  infoBoxText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#92400E",
+    lineHeight: 18,
   },
 
   /* Footer */
@@ -462,4 +577,11 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 40,
   },
+
+  /* Needed for theme reference */
+  vitalHeart: {},
+  vitalOxygen: {},
 });
+
+// Extend TC for vitalOxygen / vitalHeart refs used inline
+const { vitalHeart, vitalOxygen } = TC;

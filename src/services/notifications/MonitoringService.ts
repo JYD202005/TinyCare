@@ -1,4 +1,3 @@
-import { notifyCommon, notifyWarning, notifyEmergency } from './NotificationService';
 import { Biometrics } from '../ble/bleTypes';
 
 // Guardamos el último estado para no spamear la misma notificación
@@ -8,9 +7,17 @@ let lastStatus = {
   temp: 'normal',
 };
 
-// Evaluación clínica de los signos vitales
+// ─── Lazy imports de NotificationService ─────────────────────────────────────
+// Se importan de forma lazy para evitar que expo-notifications se inicialice
+// al cargar el módulo BLE (lo que dispara warnings de Expo Go).
+
+const getNotify = () => require('./NotificationService') as typeof import('./NotificationService');
+
+// ─── Evaluación clínica de signos vitales ─────────────────────────────────────
+
 export const evaluateBiometrics = (data: Biometrics) => {
   const { oxygenSaturation: spo2, heartRate: hr, temperature: temp } = data;
+  const { notifyEmergency, notifyWarning } = getNotify();
 
   // --- EVALUACIÓN SpO2 ---
   if (spo2 > 0) {
@@ -65,8 +72,11 @@ export const evaluateBiometrics = (data: Biometrics) => {
   }
 };
 
-// Avisos de estado del hardware
+// ─── Avisos de estado del hardware ───────────────────────────────────────────
+
 export const notifyHardwareStatus = (event: 'low_battery' | 'disconnected' | 'connected') => {
+  const { notifyWarning, notifyCommon } = getNotify();
+
   if (event === 'low_battery') {
     notifyWarning('Batería Baja', 'El sensor de TinyCare tiene poca batería. Por favor, ponlo a cargar pronto.');
   } else if (event === 'disconnected') {
