@@ -9,6 +9,7 @@ import {
   FlatList,
   Modal,
   Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -53,7 +54,44 @@ export default function SensorManagement() {
     }
   };
 
-  const startScan = () => {
+  const requestPermissions = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        if (Number(Platform.Version) >= 31) {
+          const result = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          ]);
+          return (
+            result['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
+            result['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED
+          );
+        } else {
+          const result = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+          ]);
+          return (
+            result['android.permission.ACCESS_FINE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED ||
+            result['android.permission.ACCESS_COARSE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED
+          );
+        }
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const startScan = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) {
+      showToast('error', 'Se requieren permisos de Bluetooth para escanear');
+      return;
+    }
+
     setDevices([]);
     setScanning(true);
 

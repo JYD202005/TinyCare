@@ -15,7 +15,6 @@ export const adapter: BleAdapter = {
 
       // La API web no usa deviceId para conectar en frío, abre un selector.
       const device = await navigator.bluetooth.requestDevice({
-        // acceptAllDevices: true, // Descomentar si aún no programas los UUIDs en tu ESP32
         filters: [{ services: [SENSOR_UUIDS.TINYCARE_SERVICE] }]
       });
 
@@ -40,22 +39,24 @@ export const adapter: BleAdapter = {
           characteristic.addEventListener('characteristicvaluechanged', (event: any) => {
             const dataView = event.target.value as DataView;
             
-            // Decodificamos los mismos bytes de forma nativa en Web
-            const heartRate = dataView.byteLength > 0 ? dataView.getUint8(0) : 0;
-            const respiratoryRate = dataView.byteLength > 1 ? dataView.getUint8(1) : 0;
-            const oxygenSaturation = dataView.byteLength > 2 ? dataView.getUint8(2) : 0;
-            const tempInt = dataView.byteLength > 3 ? dataView.getUint8(3) : 0;
-            const tempDec = dataView.byteLength > 4 ? dataView.getUint8(4) : 0;
+            // El ESP32 envía JSON en texto plano: {"ir":..., "red":..., "bpm":...}
+            const decoder = new TextDecoder('utf-8');
+            const text = decoder.decode(dataView.buffer);
+            
+            try {
+              const json = JSON.parse(text);
+              const biometrics: Biometrics = {
+                heartRate: json.bpm ?? 0,
+                respiratoryRate: json.bpm ? Math.round(json.bpm / 4) : 0,
+                oxygenSaturation: json.spo2 ?? 0,
+                temperature: json.temp ?? 0,
+              };
 
-            const biometrics: Biometrics = {
-              heartRate,
-              respiratoryRate,
-              oxygenSaturation,
-              temperature: tempInt + (tempDec / 100)
-            };
-
-            onUpdate(biometrics);
-            evaluateBiometrics(biometrics, device.id);
+              onUpdate(biometrics);
+              evaluateBiometrics(biometrics, device.id);
+            } catch (e) {
+              console.warn('[BLE Web] Error parseando JSON del ESP32:', e);
+            }
           });
         },
         unsubscribe: async () => {

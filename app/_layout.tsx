@@ -4,11 +4,17 @@ import { StatusBar } from 'expo-status-bar';
 import { DatabaseProvider } from '@/src/database/context';
 import { AuthProvider } from '@/src/providers/AuthProvider';
 import { setupNotificationChannels, requestNotificationPermissions } from '@/src/services/notifications/NotificationService';
+import { initConnectionManager } from '@/src/services/ble/ConnectionManager';
 
 export default function RootLayout() {
   useEffect(() => {
     setupNotificationChannels();
     requestNotificationPermissions();
+    const cleanupBLE = initConnectionManager();
+    
+    return () => {
+      cleanupBLE();
+    };
   }, []);
 
   return (

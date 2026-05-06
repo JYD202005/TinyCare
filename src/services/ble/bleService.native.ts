@@ -19,6 +19,28 @@ try {
 // Caché en memoria para evitar problemas escaneando dispositivos ya encontrados
 const scannedDevices = new Map<string, Device>();
 
+/**
+ * Parsea el valor recibido de la característica BLE del ESP32.
+ * El ESP32 envía JSON en texto plano: {"ir":..., "red":..., "bpm":...}
+ */
+const parseESP32Payload = (base64Value: string): Biometrics | null => {
+  try {
+    const buffer = Buffer.from(base64Value, 'base64');
+    const text = buffer.toString('utf-8');
+    const json = JSON.parse(text);
+
+    return {
+      heartRate: json.bpm ?? 0,
+      respiratoryRate: json.bpm ? Math.round(json.bpm / 4) : 0, // Estimación FR
+      oxygenSaturation: json.spo2 ?? 0,    // El ESP32 actual no lo envía; se puede extender
+      temperature: json.temp ?? 0,          // Idem
+    };
+  } catch (e) {
+    console.warn('[BLE] Error parseando payload del ESP32:', e);
+    return null;
+  }
+};
+
 const createBleDevice = (device: Device): BleDevice => {
   return {
     id: device.id,
@@ -52,22 +74,9 @@ const createBleDevice = (device: Device): BleDevice => {
           }
           if (!characteristic?.value) return;
 
-          // RN nos da el valor en Base64. Lo pasamos a Buffer para leer los bytes.
-          const buffer = Buffer.from(characteristic.value, 'base64');
-          
-          // Estructura acordada (Ejemplo): Byte0=FC, Byte1=FR, Byte2=SpO2, Byte3=TempInt, Byte4=TempDec
-          const heartRate = buffer.length > 0 ? buffer.readUInt8(0) : 0;
-          const respiratoryRate = buffer.length > 1 ? buffer.readUInt8(1) : 0;
-          const oxygenSaturation = buffer.length > 2 ? buffer.readUInt8(2) : 0;
-          const tempInt = buffer.length > 3 ? buffer.readUInt8(3) : 0;
-          const tempDec = buffer.length > 4 ? buffer.readUInt8(4) : 0;
-
-          const data: Biometrics = {
-            heartRate,
-            respiratoryRate,
-            oxygenSaturation,
-            temperature: tempInt + (tempDec / 100)
-          };
+          // El ESP32 envía JSON en texto, lo parseamos
+          const data = parseESP32Payload(characteristic.value);
+          if (!data) return;
 
           // Analizar signos vitales y disparar alertas en background/foreground
           evaluateBiometrics(data, device.id);
@@ -86,20 +95,25 @@ export const adapter: BleAdapter = {
       console.warn("BleManager not initialized. Cannot scan.");
       return;
     }
-    manager.startDeviceScan(null, null, (error, device) => {
-      if (error) {
-        console.error('Error escaneando nativo:', error);
-        return;
-      }
-      
-      // En producción, filtra por tu prefijo, ej. 'TinyCare'
-      if (device && device.name) {
-        if (!scannedDevices.has(device.id)) {
-          scannedDevices.set(device.id, device);
-          onDeviceFound(createBleDevice(device));
+    // Escanear todos los dispositivos porque a veces el ESP32 no transmite el UUID en el paquete de 'advertising' por límite de tamaño
+    manager.startDeviceScan(
+      null,
+      null,
+      (error, device) => {
+        if (error) {
+          console.error('Error escaneando nativo:', error);
+          return;
+        }
+        
+        if (device) {
+          if (!scannedDevices.has(device.id)) {
+            scannedDevices.set(device.id, device);
+            // Si quieres filtrar, puedes hacerlo aquí: if(device.name?.includes('ESP32')) ...
+            onDeviceFound(createBleDevice(device));
+          }
         }
       }
-    });
+    );
   },
   stopScanning: () => {
     if (!manager) return;
