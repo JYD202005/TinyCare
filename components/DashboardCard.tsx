@@ -29,6 +29,9 @@ export interface VitalConfig {
 export interface DashboardCardProps {
   activeVital?: VitalType;
   onVitalChange?: (vital: VitalType) => void;
+  liveData?: VitalConfig[];
+  averages?: any;
+  alertsCount?: number;
 }
 
 // ─── Value Generators ────────────────────────────────────────────────────────
@@ -40,52 +43,47 @@ const randomInRange = (min: number, max: number, decimals = 0): number => {
 
 const ACTIVITY_LABELS = ["Calmo", "Activo", "Dormido", "Jugando", "Inquieto"];
 
-const generateVitals = (): VitalConfig[] => {
-  const hr = randomInRange(72, 110);
-  const spo2 = randomInRange(95, 100);
-  const temp = randomInRange(36.2, 37.2, 1);
-  const actIdx = Math.floor(Math.random() * ACTIVITY_LABELS.length);
-
+const getEmptyVitals = (): VitalConfig[] => {
   return [
     {
       key: "heart",
       label: "Ritmo Cardíaco",
-      value: `${hr}`,
+      value: "---",
       unit: "LPM",
       color: TC.vitalHeart,
       colorDim: TC.vitalHeart + "30",
       icon: "heart",
-      progress: Math.min((hr - 60) / 80, 1),
+      progress: 0,
     },
     {
       key: "oxygen",
       label: "Oxigenación",
-      value: `${spo2}`,
+      value: "---",
       unit: "%",
       color: TC.vitalOxygen,
       colorDim: TC.vitalOxygen + "30",
       icon: "water",
-      progress: spo2 / 100,
+      progress: 0,
     },
     {
       key: "temp",
       label: "Temperatura",
-      value: `${temp}`,
+      value: "---",
       unit: "°C",
       color: TC.vitalTemp,
       colorDim: TC.vitalTemp + "30",
       icon: "thermometer",
-      progress: Math.min((temp - 35) / 3, 1),
+      progress: 0,
     },
     {
       key: "activity",
       label: "Actividad",
-      value: ACTIVITY_LABELS[actIdx],
+      value: "Sin Datos",
       unit: "",
       color: TC.vitalActivity,
       colorDim: TC.vitalActivity + "30",
       icon: "fitness",
-      progress: randomInRange(0.15, 0.85, 2),
+      progress: 0,
     },
   ];
 };
@@ -497,16 +495,19 @@ const ringStyles = StyleSheet.create({
 const DashboardCard: React.FC<DashboardCardProps> = ({
   activeVital = "heart",
   onVitalChange,
+  liveData,
+  averages,
+  alertsCount = 0,
 }) => {
-  const [liveVitals, setLiveVitals] = useState<VitalConfig[]>(generateVitals);
+  const [liveVitals, setLiveVitals] = useState<VitalConfig[]>(liveData || getEmptyVitals());
 
-  // Refresh vitals every 3.5 seconds
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveVitals(generateVitals());
-    }, 3500);
-    return () => clearInterval(interval);
-  }, []);
+    if (liveData) {
+      setLiveVitals(liveData);
+    } else {
+      setLiveVitals(getEmptyVitals());
+    }
+  }, [liveData]);
 
   const activeIndex = liveVitals.findIndex((v) => v.key === activeVital);
   const safeIndex = activeIndex >= 0 ? activeIndex : 0;
@@ -573,11 +574,12 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 
   // Stat data for the inline row
   const getAvgValue = useCallback((v: VitalConfig): string => {
-    if (v.key === "heart") return "88";
-    if (v.key === "oxygen") return "97.8";
-    if (v.key === "temp") return "36.5";
+    if (!averages) return "---";
+    if (v.key === "heart") return averages.hr ? String(averages.hr) : "---";
+    if (v.key === "oxygen") return averages.spo2 ? String(averages.spo2) : "---";
+    if (v.key === "temp") return averages.temp ? String(averages.temp) : "---";
     return "Media";
-  }, []);
+  }, [averages]);
 
   const getAvgLabel = useCallback((v: VitalConfig): string => {
     if (v.key === "heart") return "Promedio";
@@ -685,7 +687,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
             <Ionicons name="shield-checkmark" size={18} color={TC.vitalHeart} />
           </View>
           <View>
-            <Text style={cardStyles.statValue}>0</Text>
+            <Text style={cardStyles.statValue}>{alertsCount}</Text>
             <Text style={cardStyles.statLabel}>Alertas Hoy</Text>
           </View>
         </View>

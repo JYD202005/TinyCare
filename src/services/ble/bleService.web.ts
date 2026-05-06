@@ -1,4 +1,5 @@
 import { BleAdapter, BleDevice, Biometrics, SENSOR_UUIDS } from './bleTypes';
+import { evaluateBiometrics } from '../notifications/MonitoringService';
 
 export const adapter: BleAdapter = {
   startScanning: (onDeviceFound) => {
@@ -46,12 +47,15 @@ export const adapter: BleAdapter = {
             const tempInt = dataView.byteLength > 3 ? dataView.getUint8(3) : 0;
             const tempDec = dataView.byteLength > 4 ? dataView.getUint8(4) : 0;
 
-            onUpdate({
+            const biometrics: Biometrics = {
               heartRate,
               respiratoryRate,
               oxygenSaturation,
               temperature: tempInt + (tempDec / 100)
-            });
+            };
+
+            onUpdate(biometrics);
+            evaluateBiometrics(biometrics, device.id);
           });
         },
         unsubscribe: async () => {

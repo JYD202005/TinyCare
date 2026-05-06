@@ -3,6 +3,7 @@ import { Buffer } from 'buffer';
 import { BleAdapter, BleDevice, Biometrics, SENSOR_UUIDS } from './bleTypes';
 import { NativeModules } from 'react-native';
 import { evaluateBiometrics, notifyHardwareStatus } from '../notifications/MonitoringService';
+import { startForegroundMonitoring, stopForegroundMonitoring } from '../notifications/ForegroundService';
 
 let manager: BleManager | null = null;
 try {
@@ -27,11 +28,13 @@ const createBleDevice = (device: Device): BleDevice => {
       const connectedDevice = await manager.connectToDevice(device.id);
       await connectedDevice.discoverAllServicesAndCharacteristics();
       notifyHardwareStatus('connected');
+      startForegroundMonitoring();
     },
     disconnect: async () => {
       if (!manager) return;
       await manager.cancelDeviceConnection(device.id);
       notifyHardwareStatus('disconnected');
+      stopForegroundMonitoring();
     },
     subscribe: async (onUpdate) => {
       if (!manager) return;
@@ -41,7 +44,10 @@ const createBleDevice = (device: Device): BleDevice => {
         SENSOR_UUIDS.BIOMETRICS_CHAR,
         (error, characteristic) => {
           if (error) {
-            if (error.errorCode === 201) notifyHardwareStatus('disconnected');
+            if (error.errorCode === 201) {
+                notifyHardwareStatus('disconnected');
+                stopForegroundMonitoring();
+            }
             return;
           }
           if (!characteristic?.value) return;
@@ -64,7 +70,7 @@ const createBleDevice = (device: Device): BleDevice => {
           };
 
           // Analizar signos vitales y disparar alertas en background/foreground
-          evaluateBiometrics(data);
+          evaluateBiometrics(data, device.id);
           onUpdate(data);
         }
       );
@@ -104,6 +110,7 @@ export const adapter: BleAdapter = {
     try {
       const connectedDevice = await manager.connectToDevice(deviceId);
       await connectedDevice.discoverAllServicesAndCharacteristics();
+      startForegroundMonitoring();
       return createBleDevice(connectedDevice);
     } catch (e) {
       console.error('Error conectando a dispositivo específico:', e);

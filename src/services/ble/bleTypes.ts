@@ -12,6 +12,7 @@ export const SENSOR_UUIDS = {
 
 export interface BleDevice {
   id: string;
+  perfilId?: string;
   name: string | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;

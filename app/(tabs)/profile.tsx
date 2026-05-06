@@ -17,6 +17,9 @@ import { useToast } from "../../components/Toast";
 import { database } from "../../src/database";
 import { Cuidador, Dispositivo, Perfil } from "../../src/database/models";
 import { useNotificationSettings } from "../../src/services/notifications/useNotificationSettings";
+import { useAuth } from "../../src/providers/AuthProvider";
+import { useSync } from "../../src/hooks/useSync";
+import { supabase } from "../../src/services/supabase/client";
 
 // ─── SettingRow ───────────────────────────────────────────────────────────────
 
@@ -125,6 +128,8 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { showToast, ToastComponent } = useToast();
   const { settings, toggle } = useNotificationSettings();
+  const { session } = useAuth();
+  const { isSyncing } = useSync();
 
   const [babies, setBabies] = useState<
     { id: string; name: string; emoji: string }[]
@@ -174,14 +179,20 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert(
       "Cerrar Sesión",
-      "¿Estás seguro de que deseas salir? Tus datos locales se mantendrán seguros.",
+      "¿Estás seguro de que deseas cerrar sesión? Volverás al modo local.",
       [
         { text: "Cancelar", style: "cancel" },
         {
-          text: "Salir",
+          text: "Cerrar Sesión",
           style: "destructive",
-          onPress: () =>
-            showToast("success", "Sesión cerrada correctamente"),
+          onPress: async () => {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+              showToast("error", error.message);
+            } else {
+              showToast("success", "Sesión cerrada correctamente");
+            }
+          },
         },
       ]
     );
@@ -211,22 +222,40 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Cloud Card ── */}
-        <View style={styles.cloudCard}>
-          <View style={styles.cloudLeft}>
-            <View style={styles.cloudAvatar}>
-              <Ionicons name="cloud-offline" size={28} color={TC.textMuted} />
+        {!session ? (
+          <View style={styles.cloudCard}>
+            <View style={styles.cloudLeft}>
+              <View style={styles.cloudAvatar}>
+                <Ionicons name="cloud-offline" size={28} color={TC.textMuted} />
+              </View>
+              <View style={styles.cloudTextContainer}>
+                <Text style={styles.cloudTitle}>Modo Local Activo</Text>
+                <Text style={styles.cloudSub}>
+                  Los datos solo existen en tu dispositivo.
+                </Text>
+              </View>
             </View>
-            <View style={styles.cloudTextContainer}>
-              <Text style={styles.cloudTitle}>Modo Local Activo</Text>
-              <Text style={styles.cloudSub}>
-                Los datos solo existen en tu dispositivo.
-              </Text>
+            <TouchableOpacity style={styles.cloudBtn} activeOpacity={0.8} onPress={() => router.push('/login')}>
+              <Text style={styles.cloudBtnText}>Iniciar Sesión</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={[styles.cloudCard, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
+            <View style={styles.cloudLeft}>
+              <View style={[styles.cloudAvatar, { backgroundColor: '#FFF' }]}>
+                <Ionicons name="cloud-done" size={28} color={TC.vitalHeart} />
+              </View>
+              <View style={styles.cloudTextContainer}>
+                <Text style={styles.cloudTitle}>
+                  Nube Activa {isSyncing && "(Sinc...)"}
+                </Text>
+                <Text style={styles.cloudSub}>
+                  Sesión: {session.user?.email}
+                </Text>
+              </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.cloudBtn} activeOpacity={0.8}>
-            <Text style={styles.cloudBtnText}>Iniciar Sesión</Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         {/* ── Mis Bebés ── */}
         <View style={styles.section}>
@@ -282,6 +311,16 @@ export default function ProfileScreen() {
               onPress={() => router.push("/sensor-management")}
             />
 
+            <View style={styles.divider} />
+            <SettingRow
+              icon="person-add"
+              iconColor={TC.vitalHeart}
+              iconBg={TC.vitalHeart + "15"}
+              label="Invitar Cuidador"
+              sublabel="Compartir perfil por correo"
+              onPress={() => router.push("/invite-caregiver")}
+            />
+
             {/* Cuidadores — solo mostrar si hay alguno registrado */}
             {cuidadoresLabel !== null && (
               <>
@@ -333,23 +372,46 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ayuda y Soporte</Text>
           <View style={styles.cardGroup}>
-            <SettingRow icon="document-text" label="Manual Clínico IMSS" />
+            <SettingRow 
+              icon="document-text" 
+              iconColor="#F87171"
+              iconBg="#FEE2E2"
+              label="Manual Clínico IMSS" 
+              onPress={() => router.push("/manual-imss")}
+            />
             <View style={styles.divider} />
-            <SettingRow icon="shield-checkmark" label="Privacidad y Datos" />
-          </View>
-        </View>
-
-        {/* ── Cerrar sesión ── */}
-        <View style={styles.section}>
-          <View style={styles.cardGroup}>
-            <SettingRow
-              icon="log-out"
-              label="Cerrar Sesión"
-              isDestructive
-              onPress={handleLogout}
+            <SettingRow 
+              icon="shield-checkmark" 
+              iconColor="#F87171"
+              iconBg="#FEE2E2"
+              label="Privacidad y Datos" 
+              onPress={() => router.push("/privacy")}
             />
           </View>
         </View>
+
+        {/* ── Opciones de Cuenta ── */}
+        {session && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Cuenta</Text>
+            <View style={styles.cardGroup}>
+              <SettingRow
+                icon="person"
+                iconColor="#3B82F6"
+                iconBg="#DBEAFE"
+                label="Cuenta Activa"
+                sublabel={session.user.email}
+              />
+              <View style={styles.divider} />
+              <SettingRow
+                icon="log-out"
+                label="Cerrar Sesión"
+                isDestructive
+                onPress={handleLogout}
+              />
+            </View>
+          </View>
+        )}
 
         <Text style={styles.versionText}>TinyCare v1.0.0 (InnovaTecNM 2026)</Text>
       </ScrollView>

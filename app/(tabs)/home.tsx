@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -27,43 +27,13 @@ import DashboardCard, {
 import { database } from "../../src/database";
 import { Perfil, Dispositivo } from "../../src/database/models";
 import { useFocusEffect } from "@react-navigation/native";
+import { subscribeToBiometrics } from "../../src/services/notifications/MonitoringService";
+import { Biometrics } from "../../src/services/ble/bleTypes";
+import { useTelemetryStats } from "../../src/hooks/useTelemetryStats";
+import { useAuth } from "../../src/providers/AuthProvider";
+import { useSync } from "../../src/hooks/useSync";
 
-// ─── Trend Data (mock per vital) ─────────────────────────────────────────────
-
-const TREND_DATA: Record<VitalType, number[]> = {
-  heart: [88, 92, 85, 90, 95, 88, 92, 86, 91, 94, 89, 92],
-  oxygen: [97, 98, 97, 99, 98, 97, 98, 99, 98, 97, 98, 98],
-  temp: [36.4, 36.5, 36.6, 36.5, 36.7, 36.5, 36.4, 36.6, 36.5, 36.5, 36.6, 36.5],
-  activity: [3, 5, 2, 4, 6, 3, 2, 5, 4, 3, 2, 4],
-};
-
-
-
-const HISTORY_DATA: Record<
-  VitalType,
-  { time: string; value: string }[]
-> = {
-  heart: [
-    { time: "Hace 5 min", value: "92 LPM" },
-    { time: "Hace 15 min", value: "88 LPM" },
-    { time: "Hace 30 min", value: "91 LPM" },
-  ],
-  oxygen: [
-    { time: "Hace 5 min", value: "98%" },
-    { time: "Hace 15 min", value: "97%" },
-    { time: "Hace 30 min", value: "98%" },
-  ],
-  temp: [
-    { time: "Hace 5 min", value: "36.5°C" },
-    { time: "Hace 15 min", value: "36.6°C" },
-    { time: "Hace 30 min", value: "36.4°C" },
-  ],
-  activity: [
-    { time: "Hace 5 min", value: "Calmo" },
-    { time: "Hace 15 min", value: "Activo" },
-    { time: "Hace 30 min", value: "Calmo" },
-  ],
-};
+// Trend and History data is now fetched from useTelemetryStats
 
 // ─── Smooth Spline Chart ─────────────────────────────────────────────────────
 
@@ -138,24 +108,27 @@ const MiniChart: React.FC<{ data: number[]; color: string }> = ({
 
 // ─── Info Card Components ────────────────────────────────────────────────────
 
-const TrendCard: React.FC<{ vital: VitalType; color: string }> = ({
+const TrendCard: React.FC<{ vital: VitalType; color: string; data: number[]; label?: string }> = ({
   vital,
   color,
+  data,
+  label
 }) => (
   <View style={infoStyles.cardFull}>
     <View style={infoStyles.cardHeader}>
       <View style={[infoStyles.iconBadge, { backgroundColor: color + "18" }]}>
         <Ionicons name="trending-up" size={16} color={color} />
       </View>
-      <Text style={infoStyles.cardTitle}>Tendencia 24h</Text>
+      <Text style={infoStyles.cardTitle}>Tendencia de {label} 24h</Text>
     </View>
-    <MiniChart data={TREND_DATA[vital]} color={color} />
+    <MiniChart data={data.length > 0 ? data : [0]} color={color} />
   </View>
 );
 
-const HistoryCard: React.FC<{ vital: VitalType; color: string }> = ({
+const HistoryCard: React.FC<{ vital: VitalType; color: string; history: { time: string, value: string }[] }> = ({
   vital,
   color,
+  history
 }) => (
   <View style={infoStyles.cardFull}>
     <View style={infoStyles.cardHeader}>
@@ -164,12 +137,12 @@ const HistoryCard: React.FC<{ vital: VitalType; color: string }> = ({
       </View>
       <Text style={infoStyles.cardTitle}>Historial Reciente</Text>
     </View>
-    {HISTORY_DATA[vital].map((item, i) => (
+    {history.map((item, i) => (
       <View
         key={i}
         style={[
           infoStyles.historyRow,
-          i < HISTORY_DATA[vital].length - 1 && infoStyles.historyBorder,
+          i < history.length - 1 && infoStyles.historyBorder,
         ]}
       >
         <Text style={infoStyles.historyTime}>{item.time}</Text>
@@ -185,14 +158,16 @@ const HistoryCard: React.FC<{ vital: VitalType; color: string }> = ({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [babies, setBabies] = useState<{ id: string, name: string, emoji: string, connected: boolean }[]>([
-    { id: 'loading', name: 'Cargando...', emoji: '⏳', connected: false }
+  const [babies, setBabies] = useState<{ id: string, name: string, emoji: string, connected: boolean, deviceId: string | null }[]>([
+    { id: 'loading', name: 'Cargando...', emoji: '⏳', connected: false, deviceId: null }
   ]);
   const [activeBabyIndex, setActiveBabyIndex] = useState(0);
   const activeBaby = babies[activeBabyIndex] || babies[0];
   
   const [activeVital, setActiveVital] = useState<VitalType>("heart");
   const vitalConfig = VITALS.find((v) => v.key === activeVital)!;
+  const { session } = useAuth();
+  const { isSyncing, lastSync } = useSync();
 
   // Re-suscribirse cada vez que la pantalla recibe foco
   // Esto garantiza que cualquier cambio en edit-baby se refleje al regresar
@@ -212,12 +187,13 @@ export default function HomeScreen() {
               name: p.nombreIdentificador || 'Bebé',
               emoji: p.avatar || '👶🏻',
               connected: hasDevice ? hasDevice.estado === 'activo' : false,
+              deviceId: hasDevice ? hasDevice.identificadorHardware : null,
             };
           });
           setBabies(loadedBabies);
-          setActiveBabyIndex(prev => prev >= loadedBabies.length ? 0 : prev);
+          setActiveBabyIndex(0);
         } else {
-          setBabies([{ id: 'empty', name: 'Sin Perfil', emoji: '👶', connected: false }]);
+          setBabies([{ id: 'empty', name: 'Sin Perfil', emoji: '👶', connected: false, deviceId: null }]);
         }
       });
 
@@ -225,6 +201,80 @@ export default function HomeScreen() {
       return () => subscription.unsubscribe();
     }, [])
   );
+
+  const [liveData, setLiveData] = useState<Record<string, any>>({});
+  
+  const { data24H, averages24H, alertsToday } = useTelemetryStats(activeBaby?.id);
+
+  useEffect(() => {
+    const unsub = subscribeToBiometrics((deviceId, data) => {
+      setLiveData(prev => ({ ...prev, [deviceId]: data }));
+    });
+    return unsub;
+  }, []);
+
+  const currentDeviceData = activeBaby?.deviceId ? liveData[activeBaby.deviceId] : null;
+
+  const getTrendData = (vital: VitalType) => {
+    switch (vital) {
+      case 'heart': return data24H.hr;
+      case 'oxygen': return data24H.spo2;
+      case 'temp': return data24H.temp;
+      case 'activity': return data24H.posture;
+      default: return [0];
+    }
+  };
+
+  const getHistoryData = (vital: VitalType) => {
+    return data24H.history.map(h => ({
+      time: h.time,
+      value: vital === 'heart' ? h.hr : vital === 'oxygen' ? h.spo2 : vital === 'temp' ? h.temp : h.activity
+    }));
+  };
+
+  // Adapt Biometrics data to VitalConfig array
+  const activeBabyVitals = currentDeviceData ? [
+    {
+      key: "heart" as VitalType,
+      label: "Ritmo Cardíaco",
+      value: `${currentDeviceData.heartRate}`,
+      unit: "LPM",
+      color: TC.vitalHeart,
+      colorDim: TC.vitalHeart + "30",
+      icon: "heart" as keyof typeof Ionicons.glyphMap,
+      progress: Math.min((currentDeviceData.heartRate - 60) / 80, 1),
+    },
+    {
+      key: "oxygen" as VitalType,
+      label: "Oxigenación",
+      value: `${currentDeviceData.oxygenSaturation}`,
+      unit: "%",
+      color: TC.vitalOxygen,
+      colorDim: TC.vitalOxygen + "30",
+      icon: "water" as keyof typeof Ionicons.glyphMap,
+      progress: currentDeviceData.oxygenSaturation / 100,
+    },
+    {
+      key: "temp" as VitalType,
+      label: "Temperatura",
+      value: `${currentDeviceData.temperature.toFixed(1)}`,
+      unit: "°C",
+      color: TC.vitalTemp,
+      colorDim: TC.vitalTemp + "30",
+      icon: "thermometer" as keyof typeof Ionicons.glyphMap,
+      progress: Math.min((currentDeviceData.temperature - 35) / 3, 1),
+    },
+    {
+      key: "activity" as VitalType,
+      label: "Actividad",
+      value: "Detectando...",
+      unit: "",
+      color: TC.vitalActivity,
+      colorDim: TC.vitalActivity + "30",
+      icon: "fitness" as keyof typeof Ionicons.glyphMap,
+      progress: 0.5,
+    },
+  ] : undefined;
 
   return (
     <View style={styles.root}>
@@ -292,6 +342,39 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
+        {/* ── Cloud Sync Banner ── */}
+        {!session ? (
+          <View style={{ backgroundColor: '#FCE7F3', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ backgroundColor: '#FFF', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+              <Ionicons name="cloud-offline" size={24} color="#9CA3AF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1F2937' }}>Modo Local Activo</Text>
+              <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Los datos solo existen en tu dispositivo.</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => router.push('/login')}
+              style={{ backgroundColor: '#3730A3', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>Iniciar Sesión</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ backgroundColor: '#EEF2FF', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ backgroundColor: '#FFF', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+              <Ionicons name="cloud-done" size={24} color={TC.vitalHeart} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1F2937' }}>
+                Nube Activa {isSyncing && " (Sincronizando...)"}
+              </Text>
+              <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
+                Advertencia: la transmisión remota puede tener retraso.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* ── Bluetooth Banner ── */}
         {!activeBaby.connected ? (
           <View style={styles.bleBannerDisconnected}>
@@ -334,6 +417,9 @@ export default function HomeScreen() {
           <DashboardCard
             activeVital={activeVital}
             onVitalChange={setActiveVital}
+            liveData={activeBabyVitals}
+            averages={averages24H}
+            alertsCount={alertsToday}
           />
         </View>
 
@@ -345,24 +431,10 @@ export default function HomeScreen() {
         </View>
 
         {/* 24h Trend — full width */}
-        <TrendCard vital={activeVital} color={vitalConfig.color} />
+        <TrendCard vital={activeVital} color={vitalConfig.color} data={getTrendData(activeVital)} label={vitalConfig.label} />
 
         {/* History — full width */}
-        <HistoryCard vital={activeVital} color={vitalConfig.color} />
-
-        {/* ── Sleep summary ── */}
-        <TouchableOpacity style={styles.sleepCard} activeOpacity={0.7}>
-          <View style={styles.sleepIcon}>
-            <Ionicons name="moon" size={24} color={TC.vitalOxygen} />
-          </View>
-          <View style={styles.sleepText}>
-            <Text style={styles.sleepTitle}>Última Sesión de Sueño</Text>
-            <Text style={styles.sleepSub}>2h 45m • Sueño Profundo</Text>
-          </View>
-          <View style={styles.chevronBox}>
-            <Ionicons name="chevron-forward" size={18} color={TC.textMuted} />
-          </View>
-        </TouchableOpacity>
+        <HistoryCard vital={activeVital} color={vitalConfig.color} history={getHistoryData(activeVital)} />
       </ScrollView>
     </View>
   );

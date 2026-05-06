@@ -213,11 +213,6 @@ const ExpandedMetricModal = ({ metric, period, visible, onClose }: any) => {
   );
 };
 
-const DUMMY_SPO2 = [96, 97, 98, 97, 98, 99, 98];
-const DUMMY_TEMP = [36.5, 36.5, 36.6, 36.4, 36.7, 36.5, 36.6];
-const DUMMY_HR = [110, 115, 118, 114, 112, 109, 111];
-const DUMMY_POSTURE = [80, 85, 70, 90, 85, 75, 80];
-
 const METRICS = [
   {
     id: 'spo2',
@@ -225,16 +220,16 @@ const METRICS = [
     fullName: "Oximetría (SpO₂)",
     subtitle: "Saturación de Oxígeno",
     icon: "water",
-    value: "98",
+    value: "--",
     unit: "%",
-    status: "Normal",
-    data24H: DUMMY_SPO2,
-    data7D: DUMMY_SPO2.map(v => +(v - 0.5).toFixed(1)),
+    status: "Sin Datos",
+    data24H: [] as number[],
+    data7D: [] as number[],
     color: TC.vitalOxygen,
     info: "Los niveles promedio se mantienen en el percentil seguro (>95%). No se detectaron episodios de hipoxia.",
     insights: [
-      { label: "Promedio", value: "97%" },
-      { label: "Mínimo", value: "95%" },
+      { label: "Promedio", value: "--" },
+      { label: "Mínimo", value: "--" },
     ]
   },
   {
@@ -243,16 +238,16 @@ const METRICS = [
     fullName: "Frecuencia Cardíaca",
     subtitle: "Pulso en Reposo",
     icon: "heart",
-    value: "112",
+    value: "--",
     unit: "BPM",
-    status: "Normal",
-    data24H: DUMMY_HR,
-    data7D: DUMMY_HR.map(v => v + 2),
+    status: "Sin Datos",
+    data24H: [] as number[],
+    data7D: [] as number[],
     color: TC.vitalHeart,
     info: "Ritmo cardíaco consistente con la fase de sueño REM. Sin arritmias detectadas.",
     insights: [
-      { label: "Promedio", value: "114" },
-      { label: "Mínimo", value: "105" },
+      { label: "Promedio", value: "--" },
+      { label: "Mínimo", value: "--" },
     ]
   },
   {
@@ -261,16 +256,16 @@ const METRICS = [
     fullName: "Termometría Infrarroja",
     subtitle: "Temperatura Superficial",
     icon: "thermometer",
-    value: "36.6",
+    value: "--",
     unit: "°C",
-    status: "Normal",
-    data24H: DUMMY_TEMP,
-    data7D: DUMMY_TEMP.map(v => +(v + 0.1).toFixed(1)),
+    status: "Sin Datos",
+    data24H: [] as number[],
+    data7D: [] as number[],
     color: TC.vitalTemp,
     info: "Curva térmica estable. Variación circadiana dentro de los límites clínicos esperados.",
     insights: [
-      { label: "Promedio", value: "36.5" },
-      { label: "Máximo", value: "36.8" },
+      { label: "Promedio", value: "--" },
+      { label: "Máximo", value: "--" },
     ]
   },
   {
@@ -279,16 +274,16 @@ const METRICS = [
     fullName: "Higiene Postural",
     subtitle: "Tiempo en Decúbito",
     icon: "body",
-    value: "85",
+    value: "--",
     unit: "%",
-    status: "Normal",
-    data24H: DUMMY_POSTURE,
-    data7D: DUMMY_POSTURE.map(v => v - 3),
+    status: "Sin Datos",
+    data24H: [] as number[],
+    data7D: [] as number[],
     color: TC.vitalActivity,
     info: "Postura segura mantenida durante la mayor parte del ciclo de sueño. Riesgo de asfixia posicional mínimo.",
     insights: [
-      { label: "Boca arriba", value: "85%" },
-      { label: "De lado", value: "15%" },
+      { label: "Boca arriba", value: "--" },
+      { label: "De lado", value: "--" },
     ]
   }
 ];
@@ -390,66 +385,103 @@ const SendToPediatrician = ({ metrics, period, showToast }: { metrics: typeof ME
   );
 };
 
-/* ── Random variation helpers ── */
-const randBetween = (min: number, max: number, decimals = 0) =>
-  +(min + Math.random() * (max - min)).toFixed(decimals);
-
-const shiftArray = (arr: number[], delta: () => number) => {
-  const next = [...arr.slice(1), arr[arr.length - 1] + delta()];
-  return next;
-};
-
-import { evaluateBiometrics } from '../../src/services/notifications/MonitoringService';
+import { useTelemetryStats } from "../../src/hooks/useTelemetryStats";
+import { database } from "../../src/database";
+import { Perfil, Dispositivo } from "../../src/database/models";
+import { subscribeToBiometrics } from "../../src/services/notifications/MonitoringService";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function StatsScreen() {
   const { showToast, ToastComponent } = useToast();
   const [period, setPeriod] = useState<"24H" | "7D">("24H");
   const [selectedMetric, setSelectedMetric] = useState<any>(null);
   const [liveMetrics, setLiveMetrics] = useState(METRICS);
+  const [babies, setBabies] = useState<{ id: string, name: string, emoji: string, connected: boolean, deviceId: string | null }[]>([
+    { id: 'loading', name: 'Cargando...', emoji: '⏳', connected: false, deviceId: null }
+  ]);
+  const [activeBabyIndex, setActiveBabyIndex] = useState(0);
+  const activeBaby = babies[activeBabyIndex] || babies[0];
 
-  // Simulate live telemetry every 3s
-  useEffect(() => {
-    let ticks = 0;
-    const timer = setInterval(() => {
-      ticks++;
-      // Every ~10 ticks, force an anomaly to test notifications
-      const forceAnomaly = ticks % 10 === 0;
+  const { data24H, data7D, averages24H } = useTelemetryStats(activeBaby?.id);
 
-      setLiveMetrics(prev => {
-        let simulatedData: any = { heartRate: 0, respiratoryRate: 0, oxygenSaturation: 0, temperature: 0 };
-        
-        const newMetrics = prev.map(m => {
-          switch (m.id) {
-            case 'spo2': {
-              const v = forceAnomaly ? randBetween(85, 92) : randBetween(95, 99);
-              simulatedData.oxygenSaturation = v;
-              return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-1, 1)), insights: [{ label: 'Promedio', value: `${randBetween(96, 98)}%` }, m.insights[1]] };
-            }
-            case 'hr': {
-              const v = forceAnomaly ? randBetween(175, 205) : randBetween(105, 125);
-              simulatedData.heartRate = v;
-              return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-4, 4)), insights: [{ label: 'Promedio', value: String(randBetween(108, 118)) }, m.insights[1]] };
-            }
-            case 'temp': {
-              const v = forceAnomaly ? randBetween(39.0, 40.0, 1) : randBetween(36.3, 36.9, 1);
-              simulatedData.temperature = v;
-              return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-0.2, 0.2, 1)), insights: [{ label: 'Promedio', value: String(randBetween(36.4, 36.7, 1)) }, m.insights[1]] };
-            }
-            case 'posture': {
-              const v = randBetween(70, 95);
-              const side = 100 - v;
-              return { ...m, value: String(v), data24H: shiftArray(m.data24H, () => randBetween(-5, 5)), insights: [{ label: 'Boca arriba', value: `${v}%` }, { label: 'De lado', value: `${side}%` }] };
-            }
-            default: return m;
-          }
-        });
+  useFocusEffect(
+    useCallback(() => {
+      const perfilesCollection = database.collections.get<Perfil>('perfiles');
+      const dispositivosCollection = database.collections.get<Dispositivo>('dispositivos');
 
-        evaluateBiometrics(simulatedData);
-        return newMetrics;
+      const subscription = perfilesCollection.query().observe().subscribe(async (perfiles) => {
+        if (perfiles.length > 0) {
+          const allDevices = await dispositivosCollection.query().fetch();
+          const loadedBabies = perfiles.map((p) => {
+            const hasDevice = allDevices.find(d => d.idPerfil === p.id);
+            return {
+              id: p.id,
+              name: p.nombreIdentificador || 'Bebé',
+              emoji: p.avatar || '👶🏻',
+              connected: hasDevice ? hasDevice.estado === 'activo' : false,
+              deviceId: hasDevice ? hasDevice.identificadorHardware : null,
+            };
+          });
+          setBabies(loadedBabies);
+          setActiveBabyIndex(prev => prev >= loadedBabies.length ? 0 : prev);
+        } else {
+          setBabies([{ id: 'empty', name: 'Sin Perfil', emoji: '👶', connected: false, deviceId: null }]);
+        }
       });
-    }, 3000);
-    return () => clearInterval(timer);
+      return () => subscription.unsubscribe();
+    }, [])
+  );
+
+  const [liveData, setLiveData] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    const unsub = subscribeToBiometrics((deviceId: string, data: any) => {
+      setLiveData(prev => ({ ...prev, [deviceId]: data }));
+    });
+    return unsub;
   }, []);
+
+  useEffect(() => {
+    setLiveMetrics(prev => {
+      return prev.map(m => {
+        const live = activeBaby?.deviceId ? liveData[activeBaby.deviceId] : null;
+        let value = m.value;
+        let status = "Normal";
+        
+        switch (m.id) {
+          case 'spo2': 
+            value = live ? String(live.oxygenSaturation) : (averages24H.spo2 > 0 ? String(Math.round(averages24H.spo2)) : "--");
+            status = value === "--" ? "Sin Datos" : (Number(value) < 92 ? "Hipoxemia" : "Normal");
+            return { ...m, value, status, data24H: data24H.spo2, data7D: data7D.spo2, insights: [
+              { label: "Promedio", value: averages24H.spo2 > 0 ? `${Math.round(averages24H.spo2)}%` : "--" },
+              { label: "Mínimo", value: data24H.spo2.length > 0 ? `${Math.min(...data24H.spo2)}%` : "--" }
+            ] };
+          case 'hr': 
+            value = live ? String(live.heartRate) : (averages24H.hr > 0 ? String(Math.round(averages24H.hr)) : "--");
+            status = value === "--" ? "Sin Datos" : (Number(value) > 160 ? "Taquicardia" : Number(value) < 100 ? "Bradicardia" : "Normal");
+            return { ...m, value, status, data24H: data24H.hr, data7D: data7D.hr, insights: [
+              { label: "Promedio", value: averages24H.hr > 0 ? `${Math.round(averages24H.hr)}` : "--" },
+              { label: "Mínimo", value: data24H.hr.length > 0 ? `${Math.min(...data24H.hr)}` : "--" }
+            ] };
+          case 'temp': 
+            value = live ? String(live.temperature.toFixed(1)) : (averages24H.temp > 0 ? String(averages24H.temp.toFixed(1)) : "--");
+            status = value === "--" ? "Sin Datos" : (Number(value) > 38 ? "Hipertermia" : Number(value) < 36.5 ? "Hipotermia" : "Normal");
+            return { ...m, value, status, data24H: data24H.temp, data7D: data7D.temp, insights: [
+              { label: "Promedio", value: averages24H.temp > 0 ? `${averages24H.temp.toFixed(1)}` : "--" },
+              { label: "Máximo", value: data24H.temp.length > 0 ? `${Math.max(...data24H.temp).toFixed(1)}` : "--" }
+            ] };
+          case 'posture':
+            value = averages24H.posture > 0 ? String(Math.round(averages24H.posture)) : "--";
+            status = value === "--" ? "Sin Datos" : "Normal";
+            return { ...m, value, status, data24H: data24H.posture, data7D: data7D.posture, insights: [
+              { label: "Boca arriba", value: averages24H.posture > 0 ? `${Math.round(averages24H.posture)}%` : "--" },
+              { label: "De lado", value: averages24H.posture > 0 ? `${100 - Math.round(averages24H.posture)}%` : "--" }
+            ] };
+          default: return m;
+        }
+      });
+    });
+  }, [liveData, activeBaby, data24H, data7D, averages24H]);
 
   return (
     <View style={s.root}>
@@ -459,6 +491,28 @@ export default function StatsScreen() {
         <View style={s.header}>
           <Text style={s.headerKicker}>EXPEDIENTE TELEMÉTRICO</Text>
           <Text style={s.headerTitle}>Análisis Clínico</Text>
+        </View>
+
+        {/* ── Profiles Selector ── */}
+        <View style={{ marginHorizontal: -PADDING_H, marginBottom: 12 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: PADDING_H, gap: 10 }}>
+            {babies.map((b, index) => {
+              const isActive = index === activeBabyIndex;
+              return (
+                <TouchableOpacity 
+                  key={index}
+                  activeOpacity={0.8}
+                  onPress={() => setActiveBabyIndex(index)}
+                  style={[{ flexDirection: 'row', alignItems: 'center', backgroundColor: isActive ? TC.vitalHeart : '#FFF', padding: 8, paddingRight: 16, borderRadius: 24, borderWidth: 1, borderColor: isActive ? TC.vitalHeart : TC.inputBorder }]}
+                >
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                    <Text style={{ fontSize: 16 }}>{b.emoji}</Text>
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: isActive ? '#FFF' : TC.textDark }}>{b.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
         <View style={s.toggleRow}>
