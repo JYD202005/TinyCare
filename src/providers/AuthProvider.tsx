@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../services/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
+import { performSync } from '../services/supabase/syncService';
+
 type AuthContextType = {
   session: Session | null;
   user: User | null;
@@ -19,12 +21,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session) performSync();
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        performSync();
+      }
     });
 
     return () => subscription.unsubscribe();

@@ -32,8 +32,9 @@ const parseESP32Payload = (base64Value: string): Biometrics | null => {
     return {
       heartRate: json.bpm ?? 0,
       respiratoryRate: json.bpm ? Math.round(json.bpm / 4) : 0, // Estimación FR
-      oxygenSaturation: json.spo2 ?? 0,    // El ESP32 actual no lo envía; se puede extender
-      temperature: json.temp ?? 0,          // Idem
+      oxygenSaturation: json.spo2 ?? 0,    
+      temperature: json.temp ?? 0,          
+      activity: (json.activity as any) || 'Reposo',
     };
   } catch (e) {
     console.warn('[BLE] Error parseando payload del ESP32:', e);

@@ -66,7 +66,7 @@ export const useTelemetryStats = (perfilId: string | null) => {
         const alerts = await database.collections.get('alertas_medicas')
           .query(
             Q.where('id_perfil', perfilId),
-            Q.where('timestamp', Q.gte(oneDayAgo))
+            Q.where('timestamp_evento', Q.gte(oneDayAgo))
           ).fetch();
         setAlertsToday(alerts.length);
 

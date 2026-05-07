@@ -13,74 +13,72 @@ export async function performSync() {
     await synchronize({
       database,
       pullChanges: async ({ lastPulledAt }) => {
-        const lastPulledAtStr = lastPulledAt ? new Date(lastPulledAt).toISOString() : new Date(0).toISOString();
+        const lastPulledAtTs = lastPulledAt || 0;
         
-        // Example for perfiles. You need to do this for all tables.
-        const { data: perfilesData, error: pErr } = await supabase
-          .from('perfiles')
-          .select('*')
-          .gt('updated_at', lastPulledAtStr);
+        // PULL ALL TABLES
+        const fetchTable = async (table: string, filterField: string = 'updated_at') => {
+            const { data, error } = await supabase
+                .from(table)
+                .select('*')
+                .gt(filterField, lastPulledAtTs);
+            if (error) throw error;
+            return data || [];
+        };
 
-        const { data: telemetria, error: tErr } = await supabase
-          .from('telemetria_cruda')
-          .select('*')
-          // Since telemetria doesn't update, we just pull new ones based on timestamp_medicion
-          .gt('timestamp_medicion', lastPulledAt || 0);
-
-        if (pErr || tErr) throw new Error('Error pulling changes');
+        const [
+            perfiles,
+            datos,
+            salud,
+            cuidadores,
+            emergencias,
+            telemetria,
+            alertas,
+            dispositivos,
+            citas
+        ] = await Promise.all([
+            fetchTable('perfiles'),
+            fetchTable('datos_personales', 'id'), // No updated_at for some, use ID as fallback for new records
+            fetchTable('salud_contexto', 'id'),
+            fetchTable('cuidadores', 'id'),
+            fetchTable('emergencias', 'id'),
+            fetchTable('telemetria_cruda', 'timestamp_medicion'),
+            fetchTable('alertas_medicas', 'timestamp_evento'),
+            fetchTable('dispositivos', 'id'),
+            fetchTable('citas_personalizadas', 'id')
+        ]);
 
         return {
           changes: {
-            perfiles: {
-              created: perfilesData || [],
-              updated: [],
-              deleted: []
-            },
-            telemetria_cruda: {
-              created: telemetria || [],
-              updated: [],
-              deleted: []
-            }
+            perfiles: { created: perfiles, updated: [], deleted: [] },
+            datos_personales: { created: datos, updated: [], deleted: [] },
+            salud_contexto: { created: salud, updated: [], deleted: [] },
+            cuidadores: { created: cuidadores, updated: [], deleted: [] },
+            emergencias: { created: emergencias, updated: [], deleted: [] },
+            telemetria_cruda: { created: telemetria, updated: [], deleted: [] },
+            alertas_medicas: { created: alertas, updated: [], deleted: [] },
+            dispositivos: { created: dispositivos, updated: [], deleted: [] },
+            citas_personalizadas: { created: citas, updated: [], deleted: [] }
           },
           timestamp: Date.now()
         };
       },
-      pushChanges: async ({ changes, lastPulledAt }) => {
+      pushChanges: async ({ changes }) => {
         const c = changes as any;
-        const perfilesToPush = [...c.perfiles.created, ...c.perfiles.updated];
-        let telemetriaToPush: any[] = [];
+        
+        const payload = {
+            perfiles: [...c.perfiles.created, ...c.perfiles.updated],
+            datos_personales: [...c.datos_personales.created, ...c.datos_personales.updated],
+            salud_contexto: [...c.salud_contexto.created, ...c.salud_contexto.updated],
+            telemetria_cruda: c.telemetria_cruda.created, // No update for telemetry
+            alertas_medicas: [...c.alertas_medicas.created, ...c.alertas_medicas.updated],
+            dispositivos: [...c.dispositivos.created, ...c.dispositivos.updated]
+        };
 
-        // Check Premium Telemetry Access
-        if (c.telemetria_cruda.created.length > 0) {
-          const profileId = c.telemetria_cruda.created[0].id_perfil;
-          const { data: canPush } = await supabase.rpc('can_push_telemetry', { p_id_perfil: profileId });
-          
-          if (canPush) {
-            telemetriaToPush = c.telemetria_cruda.created.map((t: any) => ({
-              id: t.id,
-              id_perfil: t.id_perfil,
-              fc: t.fc,
-              fr: t.fr,
-              spo2: t.spo2,
-              temp: t.temp,
-              actividad: t.actividad,
-              timestamp_medicion: t.timestamp_medicion,
-              es_anomalia: t.es_anomalia,
-              is_synced: true
-            }));
-          } else {
-            console.log('Skipping telemetry push: User is not Premium');
-          }
-        }
-
-        // Atomic push via RPC
-        if (perfilesToPush.length > 0 || telemetriaToPush.length > 0) {
-          const { error } = await supabase.rpc('push_sync', {
-            payload: {
-              perfiles: perfilesToPush,
-              telemetria_cruda: telemetriaToPush
-            }
-          });
+        // Check if there is anything to push
+        const hasChanges = Object.values(payload).some(arr => arr.length > 0);
+        
+        if (hasChanges) {
+          const { error } = await supabase.rpc('push_sync', { payload });
           if (error) throw new Error('Atomic Push Failed: ' + error.message);
         }
       },

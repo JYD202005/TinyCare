@@ -103,10 +103,10 @@ export const evaluateBiometrics = async (data: Biometrics, deviceId?: string) =>
   if (perfilContexto && perfilId) {
     const lectura: LecturaSensor = {
       fc: data.heartRate,
-      fr: data.respiratoryRate, // En ESP32 esto podría estar simulado o calculado
+      fr: data.respiratoryRate, 
       spo2: data.oxygenSaturation,
       temp: data.temperature,
-      actividad
+      actividad: data.activity
     };
 
     const resultado = evaluarLectura(lectura, perfilContexto);

@@ -1,8 +1,11 @@
+import { EstadoActividad } from "../../types/medical";
+
 export interface Biometrics {
   heartRate: number;
   respiratoryRate: number;
   oxygenSaturation: number;
   temperature: number;
+  activity: EstadoActividad;
 }
 
 // UUIDs que coinciden con el firmware del ESP32 (TinyCare_Sensor)
