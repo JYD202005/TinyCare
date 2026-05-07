@@ -3,7 +3,7 @@ import { database } from '../database';
 import { TelemetriaCruda } from '../database/models';
 import { Q } from '@nozbe/watermelondb';
 
-export const useTelemetryStats = (perfilId: string | null) => {
+export const useTelemetryStats = (perfilId: string | null, name?: string | null) => {
   const [data24H, setData24H] = useState({
     spo2: [] as number[],
     temp: [] as number[],
@@ -24,6 +24,30 @@ export const useTelemetryStats = (perfilId: string | null) => {
 
   useEffect(() => {
     if (!perfilId || perfilId === 'loading' || perfilId === 'empty') return;
+
+    // --- MODO DEMO: SAZED (Sincronizado con evaluadorMedico.ts) ---
+    if (name === 'Sazed') {
+      setData24H({
+        spo2: [97, 96, 98, 97, 96, 96, 97, 98, 97, 96, 97, 96],
+        temp: [36.6, 36.6, 36.7, 36.5, 36.6, 36.6, 36.7, 36.6, 36.5, 36.6, 36.6, 36.6],
+        hr: [122, 128, 130, 125, 128, 132, 130, 126, 124, 128, 130, 128],
+        posture: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
+        history: [
+          { time: 'Hace 5 min', spo2: '97%', temp: '36.6°C', hr: '128 LPM', activity: 'Sueño Tranquilo' },
+          { time: 'Hace 20 min', spo2: '96%', temp: '36.6°C', hr: '130 LPM', activity: 'Reposo' },
+          { time: 'Hace 45 min', spo2: '98%', temp: '36.5°C', hr: '124 LPM', activity: 'Sueño Profundo' },
+        ]
+      });
+      setData7D({
+        spo2: [96.8, 97.2, 96.8, 97.5, 96.5, 97.0, 96.8],
+        temp: [36.6, 36.6, 36.6, 36.5, 36.6, 36.6, 36.6],
+        hr: [128, 130, 129, 127, 131, 130, 129],
+        posture: [100, 100, 100, 100, 100, 100, 100]
+      });
+      setAverages24H({ spo2: 97, temp: 36.6, hr: 128, posture: 100 });
+      setAlertsToday(0); // Para Sazed "Sano" en demo no debería haber alertas hoy
+      return;
+    }
 
     const fetchStats = async () => {
       const now = Date.now();

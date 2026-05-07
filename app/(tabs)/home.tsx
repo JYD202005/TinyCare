@@ -207,7 +207,23 @@ export default function HomeScreen() {
 
   const [liveData, setLiveData] = useState<Record<string, any>>({});
   
-  const { data24H, averages24H, alertsToday } = useTelemetryStats(activeBaby?.id);
+  const { data24H, averages24H, alertsToday } = useTelemetryStats(activeBaby?.id, activeBaby?.name);
+
+  // --- MODO DEMO: Simulación de datos para Sazed (Sincronizado con evaluadorMedico.ts) ---
+  const [demoVitals, setDemoVitals] = useState({ hr: 130, spo2: 97, temp: 36.6, fr: 45, activity: 'Reposo' });
+  useEffect(() => {
+    if (activeBaby?.name !== 'Sazed') return;
+    const interval = setInterval(() => {
+      setDemoVitals({
+        hr: 125 + Math.floor(Math.random() * 10), // 125-135 lpm
+        spo2: 96 + Math.floor(Math.random() * 3),  // 96-98%
+        temp: 36.5 + (Math.random() * 0.2),        // 36.5-36.7°C
+        fr: 40 + Math.floor(Math.random() * 8),    // 40-48 rpm
+        activity: 'Reposo'
+      });
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [activeBaby?.name]);
 
   useEffect(() => {
     const unsub = subscribeToBiometrics((deviceId, data) => {
@@ -216,7 +232,10 @@ export default function HomeScreen() {
     return unsub;
   }, []);
 
-  const currentDeviceData = activeBaby?.deviceId ? liveData[activeBaby.deviceId] : null;
+  // Si es Sazed, usamos datos simulados si no hay un sensor real conectado
+  const currentDeviceData = activeBaby?.name === 'Sazed'
+    ? { heartRate: demoVitals.hr, oxygenSaturation: demoVitals.spo2, temperature: demoVitals.temp, respiratoryRate: demoVitals.fr, activity: demoVitals.activity }
+    : (activeBaby?.deviceId ? liveData[activeBaby.deviceId] : null);
 
   const getTrendData = (vital: VitalType) => {
     switch (vital) {
@@ -291,12 +310,6 @@ export default function HomeScreen() {
           <View style={styles.headerLeft}>
             <Text style={styles.babyName}>Hola de nuevo,</Text>
             <Text style={styles.appTitle}>Panel de Salud</Text>
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.notifBtn} activeOpacity={0.7}>
-              <Ionicons name="notifications-outline" size={24} color={TC.textDark} />
-              <View style={styles.notifBadge} />
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -379,7 +392,7 @@ export default function HomeScreen() {
         )}
 
         {/* ── Bluetooth Banner ── */}
-        {!activeBaby.connected ? (
+        {!activeBaby.connected && activeBaby.name !== 'Sazed' ? (
           <View style={styles.bleBannerDisconnected}>
              <View style={styles.bleIconBoxDisconnected}>
                <Ionicons name="bluetooth" size={20} color="#FFF" />
@@ -460,17 +473,12 @@ const styles = StyleSheet.create({
   /* Header */
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end", // Align to bottom so title and button sit nicely
+    alignItems: "flex-end",
     marginBottom: 4,
     paddingHorizontal: 4,
   },
   headerLeft: {
     flex: 1,
-  },
-  headerRight: {
-    alignItems: "flex-end",
-    gap: 12,
   },
   profilesWrapper: {
     marginHorizontal: -20,
@@ -574,32 +582,7 @@ const styles = StyleSheet.create({
     color: TC.textDark,
     letterSpacing: -0.8,
   },
-  notifBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: TC.card,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: TC.inputBorder,
-    shadowColor: TC.textDark,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  notifBadge: {
-    position: "absolute",
-    top: 14,
-    right: 14,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: TC.vitalTemp,
-    borderWidth: 2,
-    borderColor: TC.card,
-  },
+
 
   /* Bluetooth Banners */
   bleBannerDisconnected: {

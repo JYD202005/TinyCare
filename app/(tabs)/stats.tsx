@@ -404,7 +404,23 @@ export default function StatsScreen() {
   const [activeBabyIndex, setActiveBabyIndex] = useState(0);
   const activeBaby = babies[activeBabyIndex] || babies[0];
 
-  const { data24H, data7D, averages24H } = useTelemetryStats(activeBaby?.id);
+  const { data24H, data7D, averages24H } = useTelemetryStats(activeBaby?.id, activeBaby?.name);
+
+  // --- MODO DEMO: Simulación de datos para Sazed (Sincronizado con evaluadorMedico.ts) ---
+  const [demoVitals, setDemoVitals] = useState({ hr: 130, spo2: 97, temp: 36.6, fr: 45, activity: 'Reposo' });
+  useEffect(() => {
+    if (activeBaby?.name !== 'Sazed') return;
+    const interval = setInterval(() => {
+      setDemoVitals({
+        hr: 125 + Math.floor(Math.random() * 10), // 125-135 lpm (Rango regular reposo)
+        spo2: 96 + Math.floor(Math.random() * 3),  // 96-98% (Óptimo)
+        temp: 36.5 + (Math.random() * 0.2),        // 36.5-36.7°C (Normal axilar)
+        fr: 40 + Math.floor(Math.random() * 8),    // 40-48 rpm (Normal neonato)
+        activity: 'Reposo'
+      });
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [activeBaby?.name]);
 
   useFocusEffect(
     useCallback(() => {
@@ -446,7 +462,15 @@ export default function StatsScreen() {
   useEffect(() => {
     setLiveMetrics(prev => {
       return prev.map(m => {
-        const live = activeBaby?.deviceId ? liveData[activeBaby.deviceId] : null;
+        // Para Sazed usamos los datos de simulación si no hay dispositivo real
+        const isSazed = activeBaby?.name === 'Sazed';
+        const live = activeBaby?.deviceId ? liveData[activeBaby.deviceId] : (isSazed ? { 
+          oxygenSaturation: demoVitals.spo2, 
+          heartRate: demoVitals.hr, 
+          temperature: demoVitals.temp,
+          activity: demoVitals.activity
+        } : null);
+
         let value = m.value;
         let status = "Normal";
         
@@ -455,35 +479,35 @@ export default function StatsScreen() {
             value = live ? String(live.oxygenSaturation) : (averages24H.spo2 > 0 ? String(Math.round(averages24H.spo2)) : "--");
             status = value === "--" ? "Sin Datos" : (Number(value) < 92 ? "Hipoxemia" : "Normal");
             return { ...m, value, status, data24H: data24H.spo2, data7D: data7D.spo2, insights: [
-              { label: "Promedio", value: averages24H.spo2 > 0 ? `${Math.round(averages24H.spo2)}%` : "--" },
-              { label: "Mínimo", value: data24H.spo2.length > 0 ? `${Math.min(...data24H.spo2)}%` : "--" }
+              { label: "Promedio", value: averages24H.spo2 > 0 ? `${Math.round(averages24H.spo2)}%` : (isSazed ? "98.5%" : "--") },
+              { label: "Mínimo", value: data24H.spo2.length > 0 ? `${Math.min(...data24H.spo2)}%` : (isSazed ? "97%" : "--") }
             ] };
           case 'hr': 
             value = live ? String(live.heartRate) : (averages24H.hr > 0 ? String(Math.round(averages24H.hr)) : "--");
             status = value === "--" ? "Sin Datos" : (Number(value) > 160 ? "Taquicardia" : Number(value) < 100 ? "Bradicardia" : "Normal");
             return { ...m, value, status, data24H: data24H.hr, data7D: data7D.hr, insights: [
-              { label: "Promedio", value: averages24H.hr > 0 ? `${Math.round(averages24H.hr)}` : "--" },
-              { label: "Mínimo", value: data24H.hr.length > 0 ? `${Math.min(...data24H.hr)}` : "--" }
+              { label: "Promedio", value: averages24H.hr > 0 ? `${Math.round(averages24H.hr)}` : (isSazed ? "125" : "--") },
+              { label: "Mínimo", value: data24H.hr.length > 0 ? `${Math.min(...data24H.hr)}` : (isSazed ? "121" : "--") }
             ] };
           case 'temp': 
             value = live ? String(live.temperature.toFixed(1)) : (averages24H.temp > 0 ? String(averages24H.temp.toFixed(1)) : "--");
             status = value === "--" ? "Sin Datos" : (Number(value) > 38 ? "Hipertermia" : Number(value) < 36.5 ? "Hipotermia" : "Normal");
             return { ...m, value, status, data24H: data24H.temp, data7D: data7D.temp, insights: [
-              { label: "Promedio", value: averages24H.temp > 0 ? `${averages24H.temp.toFixed(1)}` : "--" },
-              { label: "Máximo", value: data24H.temp.length > 0 ? `${Math.max(...data24H.temp).toFixed(1)}` : "--" }
+              { label: "Promedio", value: averages24H.temp > 0 ? `${averages24H.temp.toFixed(1)}` : (isSazed ? "36.6" : "--") },
+              { label: "Máximo", value: data24H.temp.length > 0 ? `${Math.max(...data24H.temp).toFixed(1)}` : (isSazed ? "36.8" : "--") }
             ] };
           case 'posture':
-            value = averages24H.posture > 0 ? String(Math.round(averages24H.posture)) : "--";
+            value = averages24H.posture > 0 ? String(Math.round(averages24H.posture)) : (isSazed ? "100" : "--");
             status = value === "--" ? "Sin Datos" : "Normal";
             return { ...m, value, status, data24H: data24H.posture, data7D: data7D.posture, insights: [
-              { label: "Boca arriba", value: averages24H.posture > 0 ? `${Math.round(averages24H.posture)}%` : "--" },
-              { label: "De lado", value: averages24H.posture > 0 ? `${100 - Math.round(averages24H.posture)}%` : "--" }
+              { label: "Boca arriba", value: value !== "--" ? `${value}%` : "--" },
+              { label: "De lado", value: value !== "--" ? `${100 - Number(value)}%` : "--" }
             ] };
           default: return m;
         }
       });
     });
-  }, [liveData, activeBaby, data24H, data7D, averages24H]);
+  }, [liveData, activeBaby, data24H, data7D, averages24H, demoVitals]);
 
   return (
     <View style={s.root}>

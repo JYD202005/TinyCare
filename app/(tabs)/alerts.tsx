@@ -56,6 +56,34 @@ function formatTimestamp(ts: number): string {
   return `Hace ${Math.floor(hrs / 24)} d`;
 }
 
+// ─── MODO DEMO: SAZED ────────────────────────────────────────────────────────
+const MOCK_ALERTS_FOR_SAZED: any[] = [
+  {
+    id: 'demo-1',
+    tipoAlerta: 'Taquicardia Neonatal',
+    mensajeMedico: 'FC detectada: 168 LPM. El límite normal es 160. Verifique si el bebé está llorando o tiene fiebre.',
+    nivel: 'Advertencia',
+    timestampEvento: Date.now() - 1000 * 60 * 45, // hace 45 min
+    leida: false,
+  },
+  {
+    id: 'demo-2',
+    tipoAlerta: 'Hipoxemia (SpO2)',
+    mensajeMedico: 'Nivel detectado: 91%. Una saturación menor al 92% se considera patológica en neonatos.',
+    nivel: 'Critico',
+    timestampEvento: Date.now() - 1000 * 60 * 120, // hace 2h
+    leida: true,
+  },
+  {
+    id: 'demo-3',
+    tipoAlerta: 'Hipotermia Leve',
+    mensajeMedico: 'Temperatura: 36.2°C. El rango normal axilar es 36.5-36.8°C. Abrigue al bebé.',
+    nivel: 'Advertencia',
+    timestampEvento: Date.now() - 1000 * 60 * 300, // hace 5h
+    leida: true,
+  }
+];
+
 // ─── AlertCard ────────────────────────────────────────────────────────────────
 
 const AlertCard: React.FC<{
@@ -147,8 +175,18 @@ export default function AlertsScreen() {
       const subAlerts = alertasCol
         .query()
         .observe()
-        .subscribe((rows) => {
-          const sorted = [...rows].sort(
+        .subscribe(async (rows) => {
+          let finalAlerts = [...rows];
+          
+          // Verificar si existe Sazed
+          const perfiles = await database.collections.get('perfiles').query().fetch();
+          const hasSazed = perfiles.some((p: any) => p.nombreIdentificador === 'Sazed');
+          
+          if (hasSazed) {
+            finalAlerts = [...finalAlerts, ...MOCK_ALERTS_FOR_SAZED];
+          }
+
+          const sorted = finalAlerts.sort(
             (a, b) => b.timestampEvento - a.timestampEvento,
           );
           setAlerts(sorted);
@@ -158,8 +196,12 @@ export default function AlertsScreen() {
       const subDevices = dispositivosCol
         .query()
         .observe()
-        .subscribe((dispositivos) => {
-          setEspConnected(dispositivos.some((d) => d.estado === "activo"));
+        .subscribe(async (dispositivos) => {
+          const connected = dispositivos.some((d) => d.estado === "activo");
+          const perfiles = await database.collections.get('perfiles').query().fetch();
+          const hasSazed = perfiles.some((p: any) => p.nombreIdentificador === 'Sazed');
+          
+          setEspConnected(connected || hasSazed);
         });
 
       return () => {
