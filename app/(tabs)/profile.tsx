@@ -310,6 +310,15 @@ export default function ProfileScreen() {
               value={deviceLabel}
               onPress={() => router.push("/sensor-management")}
             />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="calendar"
+              iconColor="#6366F1"
+              iconBg="#EEF2FF"
+              label="Agenda y Recordatorios"
+              sublabel="Citas médicas y tareas de cuidado"
+              onPress={() => router.push("/reminders")}
+            />
 
             <View style={styles.divider} />
             <SettingRow

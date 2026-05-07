@@ -71,7 +71,8 @@ export async function performSync() {
             salud_contexto: [...c.salud_contexto.created, ...c.salud_contexto.updated],
             telemetria_cruda: c.telemetria_cruda.created, // No update for telemetry
             alertas_medicas: [...c.alertas_medicas.created, ...c.alertas_medicas.updated],
-            dispositivos: [...c.dispositivos.created, ...c.dispositivos.updated]
+            dispositivos: [...c.dispositivos.created, ...c.dispositivos.updated],
+            citas_personalizadas: [...c.citas_personalizadas.created, ...c.citas_personalizadas.updated]
         };
 
         // Check if there is anything to push
