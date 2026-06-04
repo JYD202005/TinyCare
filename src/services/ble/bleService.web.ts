@@ -50,6 +50,7 @@ export const adapter: BleAdapter = {
                 respiratoryRate: json.bpm ? Math.round(json.bpm / 4) : 0,
                 oxygenSaturation: json.spo2 ?? 0,
                 temperature: json.temp ?? 0,
+                activity: json.activity ?? 'Reposo',
               };
 
               onUpdate(biometrics);

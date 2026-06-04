@@ -94,7 +94,8 @@ const startSimulation = (deviceId: string) => {
       heartRate: Math.round(hr),
       respiratoryRate: Math.round(hr / 4),
       oxygenSaturation: Math.round(spo2),
-      temperature: temp
+      temperature: temp,
+      activity: 'Reposo' as const
     };
 
     // Esto dispara el evento a UI (home, stats) y guarda en DB si es necesario
