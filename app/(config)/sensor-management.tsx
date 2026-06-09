@@ -40,6 +40,9 @@ export default function SensorManagement() {
 
   useEffect(() => {
     loadData();
+    return () => {
+      stopScan();
+    };
   }, []);
 
   const loadData = async () => {
@@ -95,8 +98,8 @@ export default function SensorManagement() {
     setDevices([]);
     setScanning(true);
 
-    // Simulador Web / Entorno de Desarrollo para poder probar sin hardware real
-    if (Platform.OS === 'web' || __DEV__) {
+    // Simulador Web — solo en plataforma web donde BLE no está disponible
+    if (Platform.OS === 'web') {
       setTimeout(() => {
         setDevices(prev => {
           if (prev.find(d => d.id === 'SIM-ESP32-8A9C')) return prev;

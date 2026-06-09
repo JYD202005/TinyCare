@@ -1,16 +1,29 @@
-import React, { useState, useCallback, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
   LayoutAnimation,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
   UIManager,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import Svg, { Defs, Line, LinearGradient, Path, Stop } from "react-native-svg";
+import DashboardCard, {
+  VITALS,
+  VitalType,
+} from "../../components/DashboardCard";
+import { TC } from "../../components/theme";
+import { database } from "../../src/database";
+import { Dispositivo, Perfil } from "../../src/database/models";
+import { useSync } from "../../src/hooks/useSync";
+import { useTelemetryStats } from "../../src/hooks/useTelemetryStats";
+import { useAuth } from "../../src/providers/AuthProvider";
+import { subscribeToBiometrics } from "../../src/services/notifications/MonitoringService";
 
 if (
   Platform.OS === "android" &&
@@ -18,20 +31,6 @@ if (
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-import Svg, { Path, Defs, LinearGradient, Stop, Line } from "react-native-svg";
-import { TC } from "../../components/theme";
-import DashboardCard, {
-  VITALS,
-  VitalType,
-} from "../../components/DashboardCard";
-import { database } from "../../src/database";
-import { Perfil, Dispositivo } from "../../src/database/models";
-import { useFocusEffect } from "@react-navigation/native";
-import { subscribeToBiometrics } from "../../src/services/notifications/MonitoringService";
-import { Biometrics } from "../../src/services/ble/bleTypes";
-import { useTelemetryStats } from "../../src/hooks/useTelemetryStats";
-import { useAuth } from "../../src/providers/AuthProvider";
-import { useSync } from "../../src/hooks/useSync";
 
 // Trend and History data is now fetched from useTelemetryStats
 
@@ -77,10 +76,10 @@ const MiniChart: React.FC<{ data: number[]; color: string }> = ({
   const areaPath = `${d} L ${points[points.length - 1].x},${H} L ${points[0].x},${H} Z`;
 
   return (
-    <Svg 
-      width="100%" 
-      height={H} 
-      viewBox={`0 0 ${W} ${H}`} 
+    <Svg
+      width="100%"
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
       style={{ marginTop: 16 }}
     >
@@ -91,10 +90,10 @@ const MiniChart: React.FC<{ data: number[]; color: string }> = ({
         </LinearGradient>
       </Defs>
       {/* Decorative center line */}
-      <Line 
-        x1="0" y1={H/2} x2={W} y2={H/2} 
-        stroke={color} strokeOpacity="0.15" 
-        strokeDasharray="4 4" strokeWidth="2" 
+      <Line
+        x1="0" y1={H / 2} x2={W} y2={H / 2}
+        stroke={color} strokeOpacity="0.15"
+        strokeDasharray="4 4" strokeWidth="2"
       />
       <Path d={areaPath} fill={`url(#grad-${color})`} />
       <Path
@@ -166,7 +165,7 @@ export default function HomeScreen() {
   ]);
   const [activeBabyIndex, setActiveBabyIndex] = useState(0);
   const activeBaby = babies[activeBabyIndex] || babies[0];
-  
+
   const [activeVital, setActiveVital] = useState<VitalType>("heart");
   const vitalConfig = VITALS.find((v) => v.key === activeVital)!;
   const { session } = useAuth();
@@ -182,7 +181,7 @@ export default function HomeScreen() {
       const subscription = perfilesCollection.query().observe().subscribe(async (perfiles) => {
         if (perfiles.length > 0) {
           const allDevices = await dispositivosCollection.query().fetch();
-          
+
           const loadedBabies = perfiles.map((p) => {
             const hasDevice = allDevices.find(d => d.idPerfil === p.id);
             return {
@@ -206,7 +205,7 @@ export default function HomeScreen() {
   );
 
   const [liveData, setLiveData] = useState<Record<string, any>>({});
-  
+
   const { data24H, averages24H, alertsToday } = useTelemetryStats(activeBaby?.id, activeBaby?.name);
 
   // --- MODO DEMO: Simulación de datos para Sazed (Sincronizado con evaluadorMedico.ts) ---
@@ -315,15 +314,15 @@ export default function HomeScreen() {
 
         {/* ── Profiles Selector ── */}
         <View style={styles.profilesWrapper}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.profilesContainer}
           >
             {babies.map((b, index) => {
               const isActive = index === activeBabyIndex;
               return (
-                <TouchableOpacity 
+                <TouchableOpacity
                   key={index}
                   activeOpacity={0.8}
                   onPress={() => {
@@ -346,7 +345,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               );
             })}
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => router.push('/(tabs)/profile')}
               style={styles.profileAddBtn}
@@ -368,7 +367,7 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 16, fontWeight: '700', color: '#1F2937' }}>Modo Local Activo</Text>
               <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Los datos solo existen en tu dispositivo.</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => router.push('/login')}
               style={{ backgroundColor: '#3730A3', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }}
             >
@@ -394,37 +393,37 @@ export default function HomeScreen() {
         {/* ── Bluetooth Banner ── */}
         {!activeBaby.connected && activeBaby.name !== 'Sazed' ? (
           <View style={styles.bleBannerDisconnected}>
-             <View style={styles.bleIconBoxDisconnected}>
-               <Ionicons name="bluetooth" size={20} color="#FFF" />
-             </View>
-             <View style={styles.bleTextCol}>
-               <Text style={styles.bleTitle}>Sensor Desconectado</Text>
-               <Text style={styles.bleSub}>Vincular monitor para {activeBaby.name}</Text>
-             </View>
-             <TouchableOpacity 
-               style={styles.bleBtn} 
-               activeOpacity={0.8}
-               onPress={() => router.push('/sensor-management')}
-             >
-               <Text style={styles.bleBtnText}>Vincular</Text>
-             </TouchableOpacity>
+            <View style={styles.bleIconBoxDisconnected}>
+              <Ionicons name="bluetooth" size={20} color="#FFF" />
+            </View>
+            <View style={styles.bleTextCol}>
+              <Text style={styles.bleTitle}>Sensor Desconectado</Text>
+              <Text style={styles.bleSub}>Vincular monitor para {activeBaby.name}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.bleBtn}
+              activeOpacity={0.8}
+              onPress={() => router.push('/sensor-management')}
+            >
+              <Text style={styles.bleBtnText}>Vincular</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.bleBannerConnected}>
-             <View style={styles.bleIconBoxConnected}>
-               <Ionicons name="bluetooth" size={20} color={TC.vitalHeart} />
-             </View>
-             <View style={styles.bleTextCol}>
-               <Text style={styles.bleTitleConnected}>Monitor Conectado</Text>
-               <Text style={styles.bleSub}>Recibiendo datos de {activeBaby.name}</Text>
-             </View>
-             <TouchableOpacity 
-               style={styles.bleBtnOutline} 
-               activeOpacity={0.8}
-               onPress={() => router.push('/sensor-management')}
-             >
-               <Text style={styles.bleBtnOutlineText}>Ajustes</Text>
-             </TouchableOpacity>
+            <View style={styles.bleIconBoxConnected}>
+              <Ionicons name="bluetooth" size={20} color={TC.vitalHeart} />
+            </View>
+            <View style={styles.bleTextCol}>
+              <Text style={styles.bleTitleConnected}>Monitor Conectado</Text>
+              <Text style={styles.bleSub}>Recibiendo datos de {activeBaby.name}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.bleBtnOutline}
+              activeOpacity={0.8}
+              onPress={() => router.push('/sensor-management')}
+            >
+              <Text style={styles.bleBtnOutlineText}>Ajustes</Text>
+            </TouchableOpacity>
           </View>
         )}
 
