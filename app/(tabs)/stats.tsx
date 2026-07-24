@@ -594,38 +594,38 @@ export default function StatsScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
+  root: { flex: 1, backgroundColor: TC.bg },
   scroll: { paddingHorizontal: PADDING_H, paddingTop: IS_SMALL ? 40 : 60, paddingBottom: 120, gap: IS_SMALL ? 16 : 20 },
   
   header: { marginBottom: 8 },
   headerKicker: { fontSize: 11, fontWeight: '800', color: TC.textMuted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 },
   headerTitle: { fontSize: IS_SMALL ? 28 : 32, fontWeight: '700', color: TC.textDark, letterSpacing: -1 },
 
-  toggleRow: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, marginBottom: 8 },
+  toggleRow: { flexDirection: 'row', backgroundColor: TC.trackBg, borderRadius: 12, padding: 4, marginBottom: 8 },
   toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-  toggleBtnActive: { backgroundColor: '#FFF', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)' } as any,
-  toggleText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  toggleBtnActive: { backgroundColor: TC.card, boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)' } as any,
+  toggleText: { fontSize: 13, fontWeight: '600', color: TC.textMuted },
   toggleTextActive: { color: TC.textDark },
 
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: CARD_GAP, marginBottom: 8 },
 
   miniCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: TC.card,
     borderRadius: 24,
     borderCurve: 'continuous' as any,
-    boxShadow: '0 6px 16px rgba(0, 0, 0, 0.03)',
+    boxShadow: '0 6px 16px rgba(20, 184, 166, 0.06)',
     borderWidth: 1,
-    borderColor: '#F8FAFC',
+    borderColor: TC.accentLight,
   } as any,
   miniHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   iconBoxSmall: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   statusDot: { width: 8, height: 8, borderRadius: 4, marginTop: 4 },
   
   miniBody: { marginBottom: 4 },
-  miniTitle: { fontSize: IS_SMALL ? 12 : 13, fontWeight: '600', color: '#64748B', marginBottom: 4 },
+  miniTitle: { fontSize: IS_SMALL ? 12 : 13, fontWeight: '600', color: TC.textMuted, marginBottom: 4 },
   miniValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2, flexShrink: 1 },
   miniValue: { fontSize: IS_SMALL ? 24 : 28, fontWeight: '800', letterSpacing: -1, fontVariant: ['tabular-nums'], flexShrink: 1 },
-  miniUnit: { fontSize: 12, fontWeight: '600', color: '#94A3B8' },
+  miniUnit: { fontSize: 12, fontWeight: '600', color: TC.textMuted },
 
   alertCard: {
     flexDirection: 'row', backgroundColor: '#ECFDF5', borderRadius: 20, padding: IS_SMALL ? 16 : 20, gap: 16,
@@ -638,20 +638,20 @@ const s = StyleSheet.create({
   // Modal styles
   modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'center', alignItems: 'center', padding: IS_SMALL ? 16 : 20 },
   modalPopup: {
-    backgroundColor: '#FFF',
+    backgroundColor: TC.card,
     borderRadius: 32,
     padding: POPUP_PADDING,
     width: '100%',
     maxWidth: 400,
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+    boxShadow: '0 8px 32px rgba(20, 184, 166, 0.12)',
   } as any,
   
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
   sheetHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   iconBox: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   sheetTitle: { fontSize: 20, fontWeight: '700', color: TC.textDark, letterSpacing: -0.5 },
-  sheetSubtitle: { fontSize: 14, fontWeight: '500', color: '#94A3B8' },
-  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  sheetSubtitle: { fontSize: 14, fontWeight: '500', color: TC.textMuted },
+  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: TC.trackBg, alignItems: 'center', justifyContent: 'center' },
 
   sheetStatusRow: { marginBottom: 24 },
   statusBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
@@ -659,59 +659,59 @@ const s = StyleSheet.create({
 
   sheetValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, flexShrink: 1 },
   sheetMainValue: { fontSize: IS_SMALL ? 40 : 48, fontWeight: '800', letterSpacing: -2, fontVariant: ['tabular-nums'], flexShrink: 1 },
-  sheetUnit: { fontSize: 20, fontWeight: '600', color: '#64748B' },
+  sheetUnit: { fontSize: 20, fontWeight: '600', color: TC.textBody },
 
   modalChartContainer: { marginVertical: 16, marginHorizontal: -POPUP_PADDING },
   modalChartScrollContent: { paddingHorizontal: POPUP_PADDING, paddingVertical: 8 },
 
   insightsGrid: { flexDirection: 'row', gap: IS_SMALL ? 8 : 12, marginBottom: IS_SMALL ? 16 : 24 },
-  insightBox: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 16, padding: IS_SMALL ? 12 : 16, borderWidth: 1, borderColor: '#F1F5F9' },
-  insightLabel: { fontSize: 12, fontWeight: '600', color: '#94A3B8', marginBottom: 4 },
+  insightBox: { flex: 1, backgroundColor: TC.bg, borderRadius: 16, padding: IS_SMALL ? 12 : 16, borderWidth: 1, borderColor: TC.accentLight },
+  insightLabel: { fontSize: 12, fontWeight: '600', color: TC.textMuted, marginBottom: 4 },
   insightValue: { fontSize: IS_SMALL ? 14 : 16, fontWeight: '700', color: TC.textDark },
 
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 20 },
+  divider: { height: 1, backgroundColor: TC.accentLight, marginBottom: 20 },
   
-  infoBox: { flexDirection: 'row', gap: 12, backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, alignItems: 'flex-start' },
-  infoBoxText: { flex: 1, fontSize: 14, fontWeight: '400', color: '#475569', lineHeight: 22 },
+  infoBox: { flexDirection: 'row', gap: 12, backgroundColor: TC.bg, padding: 16, borderRadius: 16, alignItems: 'flex-start' },
+  infoBoxText: { flex: 1, fontSize: 14, fontWeight: '400', color: TC.textBody, lineHeight: 22 },
 
   // ── Pediatrician card ──
   pedCard: {
-    backgroundColor: '#FFF', borderRadius: 28, borderCurve: 'continuous' as any,
-    overflow: 'hidden', boxShadow: '0 8px 24px rgba(92, 184, 165, 0.08)',
-    borderWidth: 1, borderColor: '#E8F5F1',
+    backgroundColor: TC.card, borderRadius: 28, borderCurve: 'continuous' as any,
+    overflow: 'hidden', boxShadow: '0 8px 24px rgba(20, 184, 166, 0.08)',
+    borderWidth: 1, borderColor: TC.accentLight,
   } as any,
-  pedStripe: { height: 4, backgroundColor: TC.vitalHeart },
+  pedStripe: { height: 4, backgroundColor: TC.accent },
   pedContent: { padding: IS_SMALL ? 16 : 20, gap: 14 },
   pedHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 2 },
   pedIconBox: {
     width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: TC.vitalHeart, boxShadow: '0 4px 12px rgba(92,184,165,0.25)',
+    backgroundColor: TC.accent, boxShadow: '0 4px 12px rgba(20, 184, 166, 0.25)',
   } as any,
   pedTitle: { fontSize: 17, fontWeight: '700', color: TC.textDark, letterSpacing: -0.3 },
-  pedSubtitle: { fontSize: 12, fontWeight: '500', color: '#94A3B8', marginTop: 1 },
+  pedSubtitle: { fontSize: 12, fontWeight: '500', color: TC.textMuted, marginTop: 1 },
 
   pedPreview: {
-    backgroundColor: '#F8FAFB', borderRadius: 16, padding: 12, gap: 8,
-    borderWidth: 1, borderColor: '#EEF2F6',
+    backgroundColor: TC.bg, borderRadius: 16, padding: 12, gap: 8,
+    borderWidth: 1, borderColor: TC.accentLight,
   },
   pedPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pedPreviewLabel: { flex: 1, fontSize: 13, fontWeight: '500', color: '#64748B' },
+  pedPreviewLabel: { flex: 1, fontSize: 13, fontWeight: '500', color: TC.textBody },
   pedPreviewVal: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] as any },
 
   pedInputWrap: {
-    flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#F8FAFB',
+    flexDirection: 'row', alignItems: 'flex-start', backgroundColor: TC.bg,
     borderRadius: 14, minHeight: 72, paddingTop: 12,
-    borderWidth: 1, borderColor: '#EEF2F6',
+    borderWidth: 1, borderColor: TC.accentLight,
   },
   pedInput: { flex: 1, minHeight: 56, paddingHorizontal: 10, fontSize: 14, fontWeight: '500', color: TC.textDark, textAlignVertical: 'top' as any },
-  pedCharCount: { fontSize: 11, fontWeight: '600', color: '#B8A0A3', textAlign: 'right', marginTop: -8 },
+  pedCharCount: { fontSize: 11, fontWeight: '600', color: TC.textMuted, textAlign: 'right', marginTop: -8 },
 
   pedSendBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: TC.vitalHeart, borderRadius: 16, paddingVertical: 14,
-    boxShadow: '0 6px 16px rgba(92,184,165,0.3)',
+    backgroundColor: TC.accent, borderRadius: 16, paddingVertical: 14,
+    boxShadow: '0 6px 16px rgba(20, 184, 166, 0.3)',
   } as any,
   pedSendText: { fontSize: 15, fontWeight: '700', color: '#FFF', letterSpacing: 0.2 },
   pedDisclaimer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: -4 },
-  pedDisclaimerText: { fontSize: 11, fontWeight: '500', color: '#94A3B8' },
+  pedDisclaimerText: { fontSize: 11, fontWeight: '500', color: TC.textMuted },
 });

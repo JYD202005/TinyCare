@@ -4,40 +4,40 @@
  */
 export const TC = {
   /* ── Core gradient pair ── */
-  gradientStart: '#FBB4B2',   // warm pink pastel
-  gradientEnd: '#A8D4F0',     // soft sky blue
+  gradientStart: '#FB7185',   // soft pink / rose
+  gradientEnd: '#cce3f5',     // soft teal / mint
 
   /* ── Accent from gradient ── */
-  accent: '#F4847E',          // slightly saturated pink for links/badges
-  accentLight: '#FDDCDB',     // very light pink for subtle fills
+  accent: '#14B8A6',          // Teal Clínico Activo
+  accentLight: '#E6F7F6',     // Very light teal for subtle fills
 
   /* ── Surfaces ── */
-  bg: '#FFF9F8',              // warm crema background
-  card: '#FFFFFF',            // white cards
-  inputBg: '#FAFAFA',         // very light warm gray for inputs
-  inputBorder: '#F0E6E5',     // warm pink-tinted border
+  bg: '#FAF9F6',              // Warm Crema Suave
+  card: '#FFFFFF',            // White cards
+  inputBg: '#F8FAFC',         // Slate 50 tint
+  inputBorder: '#E2E8F0',     // Slate 200 border
 
   /* ── Text ── */
-  textDark: '#3D2C2E',        // warm dark brown (headings)
-  textBody: '#6B5558',        // warm medium brown (body)
-  textMuted: '#A8898C',       // warm light brown (placeholders/secondary)
+  textDark: '#1E293B',        // Charcoal Slate (slate 800)
+  textBody: '#475569',        // Slate 600
+  textMuted: '#94A3B8',       // Slate 400
 
   /* ── Vital Signs ── */
-  vitalHeart: '#5CB8A5',      // teal-green for heart rate
-  vitalOxygen: '#89BDE5',     // soft blue for SpO2
-  vitalTemp: '#F4847E',       // coral for temperature
-  vitalActivity: '#B39DDB',   // lavender for activity/gyro
-  trackBg: '#F0EDF5',         // soft gray for ring backgrounds
+  vitalHeart: '#F43F5E',      // Coral Rose for heart rate
+  vitalOxygen: '#0EA5E9',     // Cyan/Sky blue for SpO2
+  vitalTemp: '#F59E0B',       // Amber for temp
+  vitalActivity: '#8B5CF6',   // Purple for activity
+  trackBg: '#F1F5F9',         // slate 100 for track backgrounds
 
   /* ── Navigation Bar ── */
-  navBg: '#FFFFFF',            // white bar (shadow differentiates from bg)
-  navActive: '#5CB8A5',        // teal-green active indicator
-  navInactive: '#B8A0A3',      // warm muted for inactive icons
-  navShadow: '#D4B5B8',        // warm pink shadow for bar depth
+  navBg: '#FFFFFF',           // white bar
+  navActive: '#14B8A6',       // primary teal active
+  navInactive: '#94A3B8',     // slate 400 inactive
+  navShadow: '#E2E8F0',       // slate 200 shadow
 
   /* ── Misc ── */
-  shadow: '#F4847E',          // pink shadow for buttons
-  checkmark: '#F4847E',       // checked state
+  shadow: '#14B8A6',          // teal shadow for active buttons
+  checkmark: '#14B8A6',       // checked state
   socialGoogle: '#EA4335',
   socialFacebook: '#4267B2',
   socialTwitter: '#1DA1F2',

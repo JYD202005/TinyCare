@@ -699,19 +699,19 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 const cardStyles = StyleSheet.create({
   card: {
     backgroundColor: TC.card,
-    borderRadius: 36,
+    borderRadius: 32,
     paddingTop: 20,
     paddingBottom: 24,
     paddingHorizontal: 16,
     alignItems: "center",
     borderCurve: "continuous" as any,
     borderWidth: 1,
-    borderColor: TC.inputBorder,
+    borderColor: TC.accentLight,
     width: "100%",
-    shadowColor: TC.textDark,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.06,
-    shadowRadius: 28,
+    shadowColor: TC.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
     elevation: 8,
   },
   liveRow: {
@@ -726,7 +726,7 @@ const cardStyles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#4ADE80",
+    backgroundColor: TC.accent,
   },
   liveText: {
     fontSize: 11,
@@ -759,7 +759,7 @@ const cardStyles = StyleSheet.create({
   divider: {
     width: "85%",
     height: 1,
-    backgroundColor: TC.inputBorder,
+    backgroundColor: TC.accentLight,
     marginTop: 20,
     marginBottom: 4,
   },

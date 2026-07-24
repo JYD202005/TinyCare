@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,6 @@ import { CitaPersonalizada, Perfil, AlertaMedica } from '../src/database/models'
 import { useFocusEffect } from '@react-navigation/native';
 import { Q } from '@nozbe/watermelondb';
 import { scheduleReminder, cancelReminder } from '../src/services/notifications/NotificationService';
-import { LinearGradient } from 'expo-linear-gradient';
-
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 export default function RemindersScreen() {
@@ -64,6 +62,9 @@ export default function RemindersScreen() {
     }
     return arr;
   }, [viewingMonth]);
+
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const slideOpacity = useRef(new Animated.Value(1)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -214,9 +215,36 @@ export default function RemindersScreen() {
   };
 
   const changeMonth = (offset: number) => {
-    const newMonth = new Date(viewingMonth);
-    newMonth.setMonth(newMonth.getMonth() + offset);
-    setViewingMonth(newMonth);
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: offset * -15,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      const newMonth = new Date(viewingMonth);
+      newMonth.setMonth(newMonth.getMonth() + offset);
+      setViewingMonth(newMonth);
+      
+      slideAnim.setValue(offset * 15);
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideOpacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        })
+      ]).start();
+    });
   };
 
   const openAddModal = () => {
@@ -253,42 +281,64 @@ export default function RemindersScreen() {
            </TouchableOpacity>
         </View>
       ) : (
-        <LinearGradient colors={[TC.gradientStart, TC.gradientEnd]} style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <View style={styles.topRow}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backCircle}>
               <Ionicons name="chevron-back" size={24} color={TC.textDark} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Mi Agenda</Text>
-            <View style={{ width: 40 }} />
+            <View style={styles.topCenter}>
+              <Text style={styles.headerLabel}>MI AGENDA</Text>
+              <Text style={styles.headerTitle}>Recordatorios</Text>
+            </View>
+            <View style={{ width: 44 }} />
           </View>
           
           <View style={styles.monthRow}>
-            <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navArrow}><Ionicons name="chevron-back" size={24} color={TC.textDark} /></TouchableOpacity>
-            <Text style={styles.monthTitle}>{MONTHS[viewingMonth.getMonth()]} {viewingMonth.getFullYear()}</Text>
-            <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navArrow}><Ionicons name="chevron-forward" size={24} color={TC.textDark} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navArrow}><Ionicons name="chevron-back" size={22} color={TC.textDark} /></TouchableOpacity>
+            <Animated.Text style={[styles.monthTitle, { transform: [{ translateX: slideAnim }], opacity: slideOpacity }]}>
+              {MONTHS[viewingMonth.getMonth()]} {viewingMonth.getFullYear()}
+            </Animated.Text>
+            <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navArrow}><Ionicons name="chevron-forward" size={22} color={TC.textDark} /></TouchableOpacity>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.daysScroll}>
-            {daysInMonth.map((d, i) => {
-              const isSelected = d.toDateString() === selectedDate.toDateString();
-              const isToday = d.toDateString() === new Date().toDateString();
-              return (
-                <TouchableOpacity key={i} onPress={() => setSelectedDate(d)} style={[styles.dayCard, isSelected && styles.dayCardActive, isToday && !isSelected && {borderColor: TC.accent, borderWidth: 1}]}>
-                  <Text style={[styles.dayName, isSelected && styles.dayNameActive]}>{d.toLocaleString('es-ES', { weekday: 'short' }).slice(0, 3).toUpperCase()}</Text>
-                  <Text style={[styles.dayNum, isSelected && styles.dayNumActive]}>{d.getDate()}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </LinearGradient>
+          <Animated.View style={{ transform: [{ translateX: slideAnim }], opacity: slideOpacity }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.daysScroll}>
+              {daysInMonth.map((d, i) => {
+                const isSelected = d.toDateString() === selectedDate.toDateString();
+                const isToday = d.toDateString() === new Date().toDateString();
+                return (
+                  <TouchableOpacity key={i} onPress={() => setSelectedDate(d)} style={[styles.dayCard, isSelected && styles.dayCardActive, isToday && !isSelected && styles.dayCardToday]}>
+                    <Text style={[styles.dayName, isSelected && styles.dayNameActive]}>{d.toLocaleString('es-ES', { weekday: 'short' }).slice(0, 3).toUpperCase()}</Text>
+                    <Text style={[styles.dayNum, isSelected && styles.dayNumActive]}>{d.getDate()}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Animated.View>
+        </View>
       )}
 
       <View style={styles.body}>
         <ScrollView contentContainerStyle={styles.timeline}>
           {filteredReminders.length === 0 ? (
-            <View style={styles.empty}>
-              <Ionicons name="calendar-outline" size={80} color={TC.inputBorder} />
-              <Text style={styles.emptyText}>Sin tareas hoy</Text>
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyCard}>
+                <View style={styles.emptyIconBox}>
+                  <Ionicons name="calendar-clear" size={44} color={TC.accent} />
+                </View>
+                <Text style={styles.emptyTitle}>Día libre de tareas</Text>
+                <Text style={styles.emptySubtitle}>No hay recordatorios programados para esta fecha. ¡Un buen momento para descansar!</Text>
+              </View>
+
+              <View style={styles.suggestionCard}>
+                <View style={styles.suggestionIcon}>
+                  <Ionicons name="bulb" size={20} color={TC.vitalTemp} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.suggestionTitle}>Sugerencia</Text>
+                  <Text style={styles.suggestionText}>Toca el botón + debajo para programar citas médicas, vacunas o tomas de medicamentos.</Text>
+                </View>
+              </View>
             </View>
           ) : (
             filteredReminders.map((item) => {
@@ -328,8 +378,10 @@ export default function RemindersScreen() {
       </View>
 
       {!isSelectionMode && (
-        <TouchableOpacity style={styles.fab} onPress={openAddModal}>
-          <LinearGradient colors={[TC.accent, TC.gradientStart]} style={styles.fabG}><Ionicons name="add" size={32} color="#FFF" /></LinearGradient>
+        <TouchableOpacity style={styles.fab} onPress={openAddModal} activeOpacity={0.8}>
+          <View style={styles.fabG}>
+            <Ionicons name="add" size={32} color="#FFF" />
+          </View>
         </TouchableOpacity>
       )}
 
@@ -380,10 +432,10 @@ export default function RemindersScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.save} onPress={handleSave} disabled={isSaving}>
-               <LinearGradient colors={[TC.accent, TC.gradientStart]} style={styles.saveG}>
+            <TouchableOpacity style={styles.save} onPress={handleSave} disabled={isSaving} activeOpacity={0.8}>
+               <View style={styles.saveG}>
                  {isSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveText}>{editingCita ? 'Actualizar' : 'Guardar'}</Text>}
-               </LinearGradient>
+               </View>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -482,75 +534,86 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: TC.bg },
   
   // Header & Selection Bar
-  header: { paddingBottom: 25, borderBottomLeftRadius: 35, borderBottomRightRadius: 35 },
-  selectionBar: { backgroundColor: TC.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 20, borderBottomLeftRadius: 35, borderBottomRightRadius: 35 },
+  header: { paddingBottom: 20 },
+  selectionBar: { backgroundColor: TC.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 20, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, borderCurve: 'continuous' as any },
   selectionCount: { color: '#FFF', fontSize: 18, fontWeight: '800' },
   barAction: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, alignItems: 'center' },
-  backCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { color: TC.textDark, fontSize: 18, fontWeight: '800' },
-  monthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginTop: 15 },
-  monthTitle: { fontSize: 24, fontWeight: '900', color: TC.textDark, textTransform: 'capitalize' },
-  navArrow: { padding: 5 },
+  topRow: { flexDirection: 'row', paddingHorizontal: 20, alignItems: 'center' },
+  topCenter: { flex: 1, alignItems: 'center' },
+  backCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: TC.card, alignItems: 'center', justifyContent: 'center', shadowColor: TC.textDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  headerLabel: { fontSize: 11, fontWeight: '700', color: TC.textMuted, letterSpacing: 1.2, textTransform: 'uppercase' as any, marginBottom: 4 },
+  headerTitle: { color: TC.textDark, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  monthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginTop: 18 },
+  monthTitle: { fontSize: 20, fontWeight: '800', color: TC.textDark, textTransform: 'capitalize' as any },
+  navArrow: { width: 36, height: 36, borderRadius: 18, backgroundColor: TC.card, alignItems: 'center', justifyContent: 'center', shadowColor: TC.textDark, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
   
-  daysScroll: { paddingHorizontal: 20, gap: 10, marginTop: 20 },
-  dayCard: { width: 62, height: 82, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
-  dayCardActive: { backgroundColor: '#FFF', elevation: 4 },
-  dayNum: { color: TC.textDark, fontSize: 18, fontWeight: '800' },
-  dayName: { color: TC.textMuted, fontSize: 10, fontWeight: '700', marginBottom: 4 },
-  dayNumActive: { color: TC.accent },
-  dayNameActive: { color: TC.accent },
+  daysScroll: { paddingHorizontal: 20, gap: 10, marginTop: 20, paddingBottom: 8 },
+  dayCard: { width: 58, height: 80, borderRadius: 22, backgroundColor: TC.card, alignItems: 'center', justifyContent: 'center', borderCurve: 'continuous' as any, borderWidth: 1, borderColor: TC.inputBorder, shadowColor: TC.textDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  dayCardActive: { backgroundColor: TC.accent, borderColor: TC.accent, shadowColor: TC.accent, shadowOpacity: 0.25, shadowRadius: 12, elevation: 6 },
+  dayCardToday: { borderColor: TC.accent, borderWidth: 1.5 },
+  dayNum: { color: TC.textDark, fontSize: 20, fontWeight: '800' },
+  dayName: { color: TC.textMuted, fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  dayNumActive: { color: '#FFF' },
+  dayNameActive: { color: 'rgba(255,255,255,0.85)' },
 
-  body: { flex: 1, backgroundColor: '#FFF', borderTopLeftRadius: 40, borderTopRightRadius: 40, marginTop: -20 },
-  timeline: { padding: 25 },
-  cardContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  cardTime: { width: 75, fontSize: 12, fontWeight: '800', color: TC.textMuted },
-  card: { flex: 1, backgroundColor: TC.bg, borderRadius: 20, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: TC.inputBorder },
+  body: { flex: 1, backgroundColor: TC.bg, marginTop: 4 },
+  timeline: { padding: 24, paddingBottom: 100 },
+  cardContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  cardTime: { width: 72, fontSize: 13, fontWeight: '800', color: TC.textMuted, letterSpacing: -0.2 },
+  card: { flex: 1, backgroundColor: TC.card, borderRadius: 24, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderCurve: 'continuous' as any, borderWidth: 1, borderColor: TC.inputBorder, shadowColor: TC.textDark, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4 },
   cardSelected: { borderColor: TC.accent, backgroundColor: TC.accentLight, borderWidth: 2 },
   
   checkbox: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: TC.textMuted, alignItems: 'center', justifyContent: 'center' },
   checkboxActive: { backgroundColor: TC.accent, borderColor: TC.accent },
 
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: TC.inputBorder },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: TC.textDark },
-  cardDesc: { fontSize: 12, color: TC.textBody, marginTop: 2 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: TC.trackBg, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: TC.textDark, letterSpacing: -0.2 },
+  cardDesc: { fontSize: 13, color: TC.textBody, marginTop: 4, fontWeight: '500' },
 
-  fab: { position: 'absolute', bottom: 30, right: 30, width: 60, height: 60, borderRadius: 30, elevation: 5 },
-  fabG: { flex: 1, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+  fab: { position: 'absolute', bottom: 30, right: 30, width: 64, height: 64, borderRadius: 32, shadowColor: TC.accent, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 6 },
+  fabG: { flex: 1, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: TC.accent },
 
   modal: { flex: 1, backgroundColor: TC.bg },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 25, alignItems: 'center' },
-  modalLabel: { fontSize: 22, fontWeight: '900', color: TC.textDark },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 25, alignItems: 'center', marginBottom: 10 },
+  modalLabel: { fontSize: 24, fontWeight: '800', color: TC.textDark, letterSpacing: -0.5 },
   form: { padding: 25 },
-  input: { backgroundColor: '#FFF', borderRadius: 18, padding: 16, fontSize: 15, borderWidth: 1, borderColor: TC.inputBorder, color: TC.textDark, fontWeight: '600' },
-  label: { fontSize: 11, fontWeight: '800', marginTop: 18, marginBottom: 8, color: TC.textMuted, textTransform: 'uppercase' },
+  input: { backgroundColor: TC.card, borderRadius: 20, padding: 18, fontSize: 15, color: TC.textDark, fontWeight: '600', borderWidth: 1, borderColor: TC.inputBorder, borderCurve: 'continuous' as any },
+  label: { fontSize: 11, fontWeight: '700', marginTop: 24, marginBottom: 10, color: TC.textMuted, textTransform: 'uppercase' as any, letterSpacing: 1.2 },
   
-  preAlertToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 15, borderRadius: 15, gap: 10, borderWidth: 1, borderColor: TC.inputBorder },
+  preAlertToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: TC.card, padding: 18, borderRadius: 20, gap: 12, borderWidth: 1, borderColor: TC.inputBorder, borderCurve: 'continuous' as any },
   preAlertActive: { backgroundColor: TC.accent, borderColor: TC.accent },
-  preAlertText: { fontSize: 14, fontWeight: '700', color: TC.textDark },
+  preAlertText: { fontSize: 15, fontWeight: '700', color: TC.textDark },
 
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 15, backgroundColor: '#FFF', borderWidth: 1, borderColor: TC.inputBorder },
-  chipText: { fontWeight: '700', color: TC.textBody },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chip: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 20, backgroundColor: TC.card, borderWidth: 1, borderColor: TC.inputBorder, borderCurve: 'continuous' as any },
+  chipText: { fontWeight: '700', color: TC.textBody, fontSize: 14 },
   chipActive: { backgroundColor: TC.accent, borderColor: TC.accent },
   
-  pickerRow: { flexDirection: 'row', gap: 12 },
-  pTrigger: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 18, borderRadius: 18, borderWidth: 1, borderColor: TC.inputBorder, alignItems: 'center' },
-  pTriggerText: { fontSize: 13, color: TC.textDark, fontWeight: '700' },
+  pickerRow: { flexDirection: 'row', gap: 16 },
+  pTrigger: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: TC.card, padding: 18, borderRadius: 20, alignItems: 'center', borderWidth: 1, borderColor: TC.inputBorder, borderCurve: 'continuous' as any },
+  pTriggerText: { fontSize: 14, color: TC.textDark, fontWeight: '700' },
   
-  save: { marginTop: 35, height: 60, borderRadius: 20, overflow: 'hidden' },
-  saveG: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  saveText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  save: { marginTop: 40, height: 60, borderRadius: 24, overflow: 'hidden', shadowColor: TC.accent, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 4, borderCurve: 'continuous' as any },
+  saveG: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: TC.accent },
+  saveText: { color: '#FFF', fontSize: 17, fontWeight: '800' },
 
-  pOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 30 },
-  pCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 20 },
-  pTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 20 },
-  pickerItem: { paddingVertical: 12, alignItems: 'center', borderRadius: 10, flex: 1 },
+  pOverlay: { flex: 1, backgroundColor: 'rgba(30, 41, 59, 0.5)', justifyContent: 'center', padding: 24 },
+  pCard: { backgroundColor: TC.card, borderRadius: 32, padding: 24, borderCurve: 'continuous' as any, shadowColor: TC.textDark, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  pTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 20, color: TC.textDark },
+  pickerItem: { paddingVertical: 12, alignItems: 'center', borderRadius: 12, flex: 1, borderCurve: 'continuous' as any },
   pickerItemText: { fontSize: 16, color: TC.textBody },
-  pOk: { backgroundColor: TC.accent, padding: 15, borderRadius: 15, marginTop: 20, alignItems: 'center' },
-  pOkText: { color: '#FFF', fontWeight: '800' },
+  pOk: { backgroundColor: TC.accent, padding: 16, borderRadius: 20, marginTop: 20, alignItems: 'center', borderCurve: 'continuous' as any },
+  pOkText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
 
-  empty: { alignItems: 'center', marginTop: 80, opacity: 0.4 },
-  emptyText: { color: TC.textMuted, fontWeight: '700', marginTop: 10, textAlign: 'center' }
+  emptyContainer: { paddingHorizontal: 4, marginTop: 20, gap: 16 },
+  emptyCard: { backgroundColor: TC.card, borderRadius: 32, padding: 32, alignItems: 'center', borderCurve: 'continuous' as any, borderWidth: 1, borderColor: TC.inputBorder, shadowColor: TC.textDark, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 2 },
+  emptyIconBox: { width: 80, height: 80, borderRadius: 40, backgroundColor: TC.accent + '15', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  emptyTitle: { fontSize: 19, fontWeight: '800', color: TC.textDark, marginBottom: 8, letterSpacing: -0.3 },
+  emptySubtitle: { fontSize: 15, color: TC.textBody, fontWeight: '500', textAlign: 'center', lineHeight: 22 },
+  
+  suggestionCard: { flexDirection: 'row', backgroundColor: TC.vitalTemp + '10', borderRadius: 24, padding: 20, alignItems: 'center', gap: 16, borderCurve: 'continuous' as any, borderWidth: 1, borderColor: TC.vitalTemp + '20' },
+  suggestionIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: TC.card, alignItems: 'center', justifyContent: 'center', shadowColor: TC.textDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  suggestionTitle: { fontSize: 14, fontWeight: '800', color: TC.textDark, marginBottom: 4 },
+  suggestionText: { fontSize: 13, color: TC.textBody, fontWeight: '500', lineHeight: 18 }
 });

@@ -1,44 +1,36 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, Modal, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { TC } from "@/components/theme";
 import ComboDatePicker from "@/components/ComboDatePicker";
 import { useToast } from "@/components/Toast";
 import { database } from "@/src/database";
 import { Perfil, DatosPersonales, SaludContexto, Cuidador, Emergencia, Dispositivo } from "@/src/database/models";
 
-const FloatingInput = ({ value, onChangeText, placeholder, keyboardType, style, containerStyle, maxLength }: any) => {
-  const isFocusedOrFilled = Boolean(value && value.toString().length > 0);
+const SubformInput = ({ value, onChangeText, placeholder, keyboardType, style, containerStyle, maxLength }: any) => {
   return (
-    <View style={[{ marginBottom: 8 }, containerStyle]}>
-      {isFocusedOrFilled ? (
-        <Text style={{ position: 'absolute', top: 4, left: 10, fontSize: 10, color: TC.textMuted, zIndex: 1 }}>
-          {placeholder}
-        </Text>
-      ) : null}
+    <View style={[styles.inputFieldContainer, { backgroundColor: TC.card }, containerStyle]}>
+      <Text style={styles.inputFieldLabel}>{placeholder}</Text>
       <TextInput
-        style={[
-          styles.contactInput,
-          isFocusedOrFilled && { paddingTop: 20, paddingBottom: 4 },
-          style
-        ]}
+        style={[styles.inputFieldText, style]}
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
         placeholderTextColor={TC.textMuted}
         keyboardType={keyboardType}
         maxLength={maxLength}
+        placeholder={`Ingresa ${placeholder.toLowerCase()}`}
       />
     </View>
   );
 };
 
-
-
 export default function EditBabyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { showToast, ToastComponent } = useToast();
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   
@@ -296,7 +288,6 @@ export default function EditBabyScreen() {
     }
   };
 
-  // Removed AVATARS array, user inputs custom emoji
   const SANGRE = ['A', 'B', 'AB', 'O', 'Otro'];
 
   const agregarEmergencia = async () => {
@@ -447,7 +438,11 @@ export default function EditBabyScreen() {
   };
 
   if (loading) {
-    return <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}><Text>Cargando...</Text></View>;
+    return (
+      <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
+        <Text style={{ color: TC.textMuted, fontSize: 16, fontWeight: '600' }}>Cargando...</Text>
+      </View>
+    );
   }
 
   return (
@@ -459,7 +454,7 @@ export default function EditBabyScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalIconBox}>
-              <Ionicons name="warning" size={32} color="#EF4444" />
+              <Ionicons name="warning" size={32} color={TC.vitalHeart} />
             </View>
             <Text style={styles.modalTitle}>Eliminar Perfil</Text>
             <Text style={styles.modalDesc}>
@@ -479,41 +474,48 @@ export default function EditBabyScreen() {
 
       <View style={styles.root}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={safeBack} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={TC.textDark} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Expediente Detallado</Text>
-          <TouchableOpacity onPress={handleSave} style={styles.saveBtn}>
-            <Text style={styles.saveBtnText}>Guardar</Text>
-          </TouchableOpacity>
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={safeBack} style={styles.backCircle}>
+              <Ionicons name="chevron-back" size={24} color={TC.textDark} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerLabel}>Expediente Médico</Text>
+            <Text style={styles.headerTitle}>Detalles del Bebé</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={handleSave} style={styles.saveCircle}>
+              <Ionicons name="checkmark" size={24} color="#FFF" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
           {/* Avatar / Emoji Picker Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Icono del Perfil</Text>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconBadge, { backgroundColor: TC.accent + '15' }]}>
+                <Ionicons name="happy-outline" size={16} color={TC.accent} />
+              </View>
+              <Text style={styles.sectionTitle}>Identidad Visual</Text>
+            </View>
             
             {/* Preview + toggle */}
             <TouchableOpacity
               onPress={() => setShowEmojiPicker(p => !p)}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 16,
-                backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16,
-                borderWidth: 1.5, borderColor: showEmojiPicker ? TC.accent : TC.inputBorder,
-              }}
+              style={[
+                styles.emojiSelectorButton,
+                showEmojiPicker && { borderColor: TC.accent }
+              ]}
             >
-              <View style={{
-                width: 64, height: 64, borderRadius: 32,
-                backgroundColor: '#FFF5F7', borderWidth: 2, borderColor: TC.accent,
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Text style={{ fontSize: 38 }}>{avatar || '❤️'}</Text>
+              <View style={styles.emojiAvatarWrapper}>
+                <Text style={{ fontSize: 28 }}>{avatar || '❤️'}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '700', color: TC.textDark, fontSize: 15 }}>Emoji del perfil</Text>
-                <Text style={{ color: TC.textMuted, fontSize: 12, marginTop: 2 }}>
+                <Text style={styles.emojiLabelTitle}>Emoji del perfil</Text>
+                <Text style={styles.emojiLabelSubtitle}>
                   {showEmojiPicker ? 'Toca un emoji para seleccionarlo' : 'Toca para abrir el selector'}
                 </Text>
               </View>
@@ -522,28 +524,23 @@ export default function EditBabyScreen() {
 
             {/* Emoji Grid */}
             {showEmojiPicker && (
-              <View style={{ marginTop: 12, backgroundColor: '#F8FAFC', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
+              <View style={styles.emojiDropdown}>
                 {EMOJI_CATEGORIES.map(cat => (
-                  <View key={cat.label} style={{ marginBottom: 12 }}>
-                    <Text style={{ fontSize: 12, color: TC.textMuted, fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 }}>
+                  <View key={cat.label} style={{ gap: 6 }}>
+                    <Text style={styles.emojiCategoryLabel}>
                       {cat.label.toUpperCase()}
                     </Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    <View style={styles.emojiGrid}>
                       {cat.emojis.map(emoji => (
                         <TouchableOpacity
                           key={emoji}
                           onPress={() => { setAvatar(emoji); setShowEmojiPicker(false); }}
                           style={[
-                            {
-                              width: 44, height: 44, borderRadius: 22,
-                              alignItems: 'center', justifyContent: 'center',
-                              borderWidth: 2,
-                              backgroundColor: avatar === emoji ? '#FFF5F7' : '#FFF',
-                              borderColor: avatar === emoji ? TC.accent : TC.inputBorder,
-                            }
+                            styles.emojiItem,
+                            avatar === emoji && styles.emojiItemActive
                           ]}
                         >
-                          <Text style={{ fontSize: 24 }}>{emoji}</Text>
+                          <Text style={{ fontSize: 22 }}>{emoji}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -555,35 +552,72 @@ export default function EditBabyScreen() {
 
           {/* Info Básica */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Información Básica</Text>
-            <View style={styles.cardGroup}>
-              <View style={styles.inputRow}>
-                <Text style={styles.inputLabel}>Nombre o Apodo</Text>
-                <TextInput style={styles.textInput} value={nombre} onChangeText={setNombre} placeholder="Ej. Josef" />
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconBadge, { backgroundColor: TC.accent + '15' }]}>
+                <Ionicons name="person-outline" size={16} color={TC.accent} />
               </View>
-              <View style={styles.divider} />
+              <Text style={styles.sectionTitle}>Información Básica</Text>
+            </View>
+            <View style={styles.cardGroup}>
+              <View style={{ padding: 16, paddingBottom: 0 }}>
+                <View style={styles.inputFieldContainer}>
+                  <Text style={styles.inputFieldLabel}>Apodo del perfil</Text>
+                  <TextInput 
+                    style={styles.inputFieldText} 
+                    value={nombre} 
+                    onChangeText={setNombre} 
+                    placeholder="Ej. Josef" 
+                    placeholderTextColor={TC.textMuted}
+                  />
+                </View>
+              </View>
 
               <View style={{ padding: 16, flexDirection: 'row', gap: 12 }}>
-                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
-                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>PRIMER NOMBRE</Text>
-                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={primerNombre} onChangeText={setPrimerNombre} placeholder="Nombre" placeholderTextColor="#CBD5E1" />
+                <View style={styles.inputFieldContainer}>
+                  <Text style={styles.inputFieldLabel}>Primer Nombre</Text>
+                  <TextInput 
+                    style={styles.inputFieldText} 
+                    value={primerNombre} 
+                    onChangeText={setPrimerNombre} 
+                    placeholder="Nombre" 
+                    placeholderTextColor={TC.textMuted} 
+                  />
                 </View>
-                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
-                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>SEGUNDO NOMBRE</Text>
-                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={segundoNombre} onChangeText={setSegundoNombre} placeholder="Opcional" placeholderTextColor="#CBD5E1" />
+                <View style={styles.inputFieldContainer}>
+                  <Text style={styles.inputFieldLabel}>Segundo Nombre</Text>
+                  <TextInput 
+                    style={styles.inputFieldText} 
+                    value={segundoNombre} 
+                    onChangeText={setSegundoNombre} 
+                    placeholder="Opcional" 
+                    placeholderTextColor={TC.textMuted} 
+                  />
                 </View>
               </View>
 
               <View style={{ paddingHorizontal: 16, paddingBottom: 16, flexDirection: 'row', gap: 12 }}>
-                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
-                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>APELLIDO PATERNO</Text>
-                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={apellidoPaterno} onChangeText={setApellidoPaterno} placeholder="Paterno" placeholderTextColor="#CBD5E1" />
+                <View style={styles.inputFieldContainer}>
+                  <Text style={styles.inputFieldLabel}>Apellido Paterno</Text>
+                  <TextInput 
+                    style={styles.inputFieldText} 
+                    value={apellidoPaterno} 
+                    onChangeText={setApellidoPaterno} 
+                    placeholder="Paterno" 
+                    placeholderTextColor={TC.textMuted} 
+                  />
                 </View>
-                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
-                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>APELLIDO MATERNO</Text>
-                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={apellidoMaterno} onChangeText={setApellidoMaterno} placeholder="Materno" placeholderTextColor="#CBD5E1" />
+                <View style={styles.inputFieldContainer}>
+                  <Text style={styles.inputFieldLabel}>Apellido Materno</Text>
+                  <TextInput 
+                    style={styles.inputFieldText} 
+                    value={apellidoMaterno} 
+                    onChangeText={setApellidoMaterno} 
+                    placeholder="Materno" 
+                    placeholderTextColor={TC.textMuted} 
+                  />
                 </View>
               </View>
+              
               <View style={styles.divider} />
               <View style={{ padding: 16 }}>
                 <ComboDatePicker value={fechaNacimiento} onChange={setFechaNacimiento} />
@@ -608,16 +642,35 @@ export default function EditBabyScreen() {
 
           {/* Datos Clínicos */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Medidas y Sangre</Text>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconBadge, { backgroundColor: TC.accent + '15' }]}>
+                <Ionicons name="scale-outline" size={16} color={TC.accent} />
+              </View>
+              <Text style={styles.sectionTitle}>Medidas y Sangre</Text>
+            </View>
             <View style={styles.cardGroup}>
               <View style={{ padding: 16, flexDirection: 'row', gap: 12 }}>
-                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
-                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>PESO (KG)</Text>
-                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={peso} onChangeText={setPeso} keyboardType="numeric" placeholder="Ej. 4.5" placeholderTextColor="#CBD5E1" />
+                <View style={styles.inputFieldContainer}>
+                  <Text style={styles.inputFieldLabel}>Peso (kg)</Text>
+                  <TextInput 
+                    style={styles.inputFieldText} 
+                    value={peso} 
+                    onChangeText={setPeso} 
+                    keyboardType="numeric" 
+                    placeholder="Ej. 4.5" 
+                    placeholderTextColor={TC.textMuted} 
+                  />
                 </View>
-                <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
-                  <Text style={[styles.inputLabel, { marginBottom: 4, fontSize: 11, color: TC.textMuted }]}>TALLA (CM)</Text>
-                  <TextInput style={{ textAlign: 'left', fontSize: 15, color: TC.textDark, fontWeight: '500' }} value={talla} onChangeText={setTalla} keyboardType="numeric" placeholder="Ej. 55" placeholderTextColor="#CBD5E1" />
+                <View style={styles.inputFieldContainer}>
+                  <Text style={styles.inputFieldLabel}>Talla (cm)</Text>
+                  <TextInput 
+                    style={styles.inputFieldText} 
+                    value={talla} 
+                    onChangeText={setTalla} 
+                    keyboardType="numeric" 
+                    placeholder="Ej. 55" 
+                    placeholderTextColor={TC.textMuted} 
+                  />
                 </View>
               </View>
               <View style={styles.divider} />
@@ -633,13 +686,16 @@ export default function EditBabyScreen() {
               </View>
               {grupoSanguineo === 'Otro' && (
                 <View style={{ padding: 16, paddingTop: 0 }}>
-                  <TextInput 
-                    style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder, fontSize: 15, color: TC.textDark, fontWeight: '500' }} 
-                    value={grupoSanguineoOtro} 
-                    onChangeText={setGrupoSanguineoOtro} 
-                    placeholder="Especificar grupo sanguíneo raro..." 
-                    placeholderTextColor="#CBD5E1"
-                  />
+                  <View style={styles.inputFieldContainer}>
+                    <Text style={styles.inputFieldLabel}>Otro Grupo Sanguíneo</Text>
+                    <TextInput 
+                      style={styles.inputFieldText} 
+                      value={grupoSanguineoOtro} 
+                      onChangeText={setGrupoSanguineoOtro} 
+                      placeholder="Especificar grupo..." 
+                      placeholderTextColor={TC.textMuted}
+                    />
+                  </View>
                 </View>
               )}
               <View style={styles.divider} />
@@ -659,39 +715,60 @@ export default function EditBabyScreen() {
 
           {/* Salud Detalles */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Detalles Médicos Críticos</Text>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconBadge, { backgroundColor: TC.accent + '15' }]}>
+                <Ionicons name="medical-outline" size={16} color={TC.accent} />
+              </View>
+              <Text style={styles.sectionTitle}>Detalles Médicos Críticos</Text>
+            </View>
             <View style={styles.cardGroup}>
               <View style={styles.switchRow}>
                 <Text style={styles.inputLabel}>¿Tiene alergias?</Text>
-                <Switch value={tieneAlergias} onValueChange={setTieneAlergias} trackColor={{ true: TC.accent }} />
+                <Switch 
+                  value={tieneAlergias} 
+                  onValueChange={setTieneAlergias} 
+                  trackColor={{ true: TC.accent, false: TC.inputBorder }} 
+                  thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
+                />
               </View>
               {tieneAlergias && (
                 <View style={{ padding: 16, paddingTop: 0 }}>
-                  <TextInput 
-                    style={[styles.textArea, { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }]} 
-                    value={detallesAlergias} 
-                    onChangeText={setDetallesAlergias} 
-                    placeholder="Describe las alergias..." 
-                    placeholderTextColor="#CBD5E1"
-                    multiline 
-                  />
+                  <View style={[styles.inputFieldContainer, { minHeight: 80 }]}>
+                    <Text style={styles.inputFieldLabel}>Detalles de Alergias</Text>
+                    <TextInput 
+                      style={[styles.inputFieldText, { minHeight: 50, textAlignVertical: 'top' }]} 
+                      value={detallesAlergias} 
+                      onChangeText={setDetallesAlergias} 
+                      placeholder="Describe las alergias..." 
+                      placeholderTextColor={TC.textMuted}
+                      multiline 
+                    />
+                  </View>
                 </View>
               )}
               <View style={styles.divider} />
               <View style={styles.switchRow}>
                 <Text style={styles.inputLabel}>¿Complicaciones al nacer?</Text>
-                <Switch value={tieneComplicaciones} onValueChange={setTieneComplicaciones} trackColor={{ true: TC.accent }} />
+                <Switch 
+                  value={tieneComplicaciones} 
+                  onValueChange={setTieneComplicaciones} 
+                  trackColor={{ true: TC.accent, false: TC.inputBorder }} 
+                  thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
+                />
               </View>
               {tieneComplicaciones && (
                 <View style={{ padding: 16, paddingTop: 0 }}>
-                  <TextInput 
-                    style={[styles.textArea, { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: TC.inputBorder }]} 
-                    value={detallesComplicaciones} 
-                    onChangeText={setDetallesComplicaciones} 
-                    placeholder="Describe las complicaciones..." 
-                    placeholderTextColor="#CBD5E1"
-                    multiline 
-                  />
+                  <View style={[styles.inputFieldContainer, { minHeight: 80 }]}>
+                    <Text style={styles.inputFieldLabel}>Detalles de Complicaciones</Text>
+                    <TextInput 
+                      style={[styles.inputFieldText, { minHeight: 50, textAlignVertical: 'top' }]} 
+                      value={detallesComplicaciones} 
+                      onChangeText={setDetallesComplicaciones} 
+                      placeholder="Describe las complicaciones..." 
+                      placeholderTextColor={TC.textMuted}
+                      multiline 
+                    />
+                  </View>
                 </View>
               )}
             </View>
@@ -699,7 +776,12 @@ export default function EditBabyScreen() {
 
           {/* Cuidadores y Emergencia */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contactos y Red de Apoyo</Text>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconBadge, { backgroundColor: TC.accent + '15' }]}>
+                <Ionicons name="people-outline" size={16} color={TC.accent} />
+              </View>
+              <Text style={styles.sectionTitle}>Contactos y Red de Apoyo</Text>
+            </View>
             <View style={styles.cardGroup}>
               
               {/* CUIDADORES HEADER */}
@@ -712,51 +794,53 @@ export default function EditBabyScreen() {
               </TouchableOpacity>
               
               {showCuidadores && (
-                <View>
+                <View style={{ paddingBottom: 8 }}>
                   {cuidadoresList.length === 0 ? (
-                    <View style={{ padding: 16, backgroundColor: '#F8FAFC' }}>
-                      <Text style={{ color: TC.textMuted, fontSize: 13, textAlign: 'center' }}>Aún no hay cuidadores agregados.</Text>
+                    <View style={{ padding: 16, backgroundColor: TC.inputBg, marginHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: TC.inputBorder }}>
+                      <Text style={{ color: TC.textMuted, fontSize: 13, textAlign: 'center', fontWeight: '500' }}>Aún no hay cuidadores agregados.</Text>
                     </View>
                   ) : (
                     cuidadoresList.map((cui) => (
-                      <View key={cui.id}>
-                        <View style={[styles.settingRow, { backgroundColor: '#F8FAFC' }]}>
-                          <View style={styles.settingLeft}>
-                            <Ionicons name="person" size={16} color={TC.textMuted} style={{ marginRight: 12, marginLeft: 16 }} />
-                            <View>
-                              <Text style={styles.settingLabel}>{cui.primerNombre} {cui.apellidoPaterno} ({cui.rol})</Text>
-                              <Text style={{ color: TC.textMuted, fontSize: 13 }}>{cui.lada} {cui.numero}</Text>
-                            </View>
+                      <View key={cui.id} style={styles.contactCard}>
+                        <View style={styles.settingLeft}>
+                          <View style={styles.contactIconBox}>
+                            <Ionicons name="person-outline" size={16} color={TC.accent} />
                           </View>
-                          <View style={{ flexDirection: 'row' }}>
-                            <TouchableOpacity onPress={() => editarCuidador(cui)} style={{ padding: 8 }}>
-                              <Ionicons name="pencil" size={20} color={TC.textMuted} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => eliminarCuidador(cui)} style={{ padding: 8 }}>
-                              <Ionicons name="trash-outline" size={20} color={TC.textMuted} />
-                            </TouchableOpacity>
+                          <View>
+                            <Text style={styles.contactName}>{cui.primerNombre} {cui.apellidoPaterno}</Text>
+                            <Text style={styles.contactRole}>{cui.rol} • {cui.lada} {cui.numero}</Text>
                           </View>
                         </View>
-                        <View style={styles.divider} />
+                        <View style={styles.contactActions}>
+                          <TouchableOpacity onPress={() => editarCuidador(cui)} style={styles.contactActionBtn}>
+                            <Ionicons name="pencil-outline" size={16} color={TC.textBody} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => eliminarCuidador(cui)} style={[styles.contactActionBtn, { backgroundColor: TC.vitalHeart + '10', borderColor: TC.vitalHeart + '25' }]}>
+                            <Ionicons name="trash-outline" size={16} color={TC.vitalHeart} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     ))
                   )}
 
                   {!showFormCuidador ? (
-                    <TouchableOpacity onPress={() => setShowFormCuidador(true)} style={{ padding: 16, alignItems: 'center', backgroundColor: '#F8FAFC' }}>
-                      <Text style={{ color: TC.accent, fontWeight: '600' }}>+ Añadir Cuidador</Text>
+                    <TouchableOpacity onPress={() => setShowFormCuidador(true)} style={styles.addContactCard}>
+                      <Ionicons name="add-circle-outline" size={20} color={TC.accent} />
+                      <Text style={styles.addContactText}>Añadir Cuidador</Text>
                     </TouchableOpacity>
                   ) : (
-                    <View style={{ padding: 16, backgroundColor: '#F8FAFC' }}>
-                      <Text style={[styles.inputLabel, { marginBottom: 12, fontSize: 14 }]}>Nuevo Cuidador</Text>
-                      <FloatingInput value={cuidadorNombre} onChangeText={setCuidadorNombre} placeholder="Nombre" />
-                      <FloatingInput value={cuidadorApellido} onChangeText={setCuidadorApellido} placeholder="Apellidos" />
-                      <FloatingInput value={cuidadorRol} onChangeText={setCuidadorRol} placeholder="Parentesco (Ej. Madre)" />
+                    <View style={styles.formContainer}>
+                      <Text style={styles.formTitle}>
+                        {editingCuidadorId ? 'Editar Cuidador' : 'Nuevo Cuidador'}
+                      </Text>
+                      <SubformInput value={cuidadorNombre} onChangeText={setCuidadorNombre} placeholder="Nombre" />
+                      <SubformInput value={cuidadorApellido} onChangeText={setCuidadorApellido} placeholder="Apellidos" />
+                      <SubformInput value={cuidadorRol} onChangeText={setCuidadorRol} placeholder="Parentesco (Ej. Madre)" />
                       <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <FloatingInput value={cuidadorLada} onChangeText={setCuidadorLada} placeholder="Ej. +52" keyboardType="phone-pad" containerStyle={{ flex: 0.3 }} style={{ textAlign: 'center' }} />
-                        <FloatingInput value={cuidadorNumero} onChangeText={setCuidadorNumero} placeholder="Número de Teléfono" keyboardType="phone-pad" containerStyle={{ flex: 1 }} />
+                        <SubformInput value={cuidadorLada} onChangeText={setCuidadorLada} placeholder="Ej. +52" keyboardType="phone-pad" containerStyle={{ flex: 0.3 }} style={{ textAlign: 'center' }} />
+                        <SubformInput value={cuidadorNumero} onChangeText={setCuidadorNumero} placeholder="Número de Teléfono" keyboardType="phone-pad" containerStyle={{ flex: 1 }} />
                       </View>
-                      <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+                      <View style={styles.formBtnRow}>
                         <TouchableOpacity 
                           onPress={() => {
                             setShowFormCuidador(false);
@@ -765,74 +849,76 @@ export default function EditBabyScreen() {
                             setCuidadorApellido('');
                             setCuidadorNumero('');
                           }} 
-                          style={{ flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', backgroundColor: TC.inputBorder }}
+                          style={styles.formBtnCancel}
                         >
-                          <Text style={{ color: TC.textDark, fontWeight: 'bold' }}>Cancelar</Text>
+                          <Text style={styles.formBtnCancelText}>Cancelar</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={agregarCuidador} style={{ flex: 1, backgroundColor: TC.textDark, padding: 12, borderRadius: 8, alignItems: 'center' }}>
-                          <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Guardar</Text>
+                        <TouchableOpacity onPress={agregarCuidador} style={styles.formBtnSave}>
+                          <Text style={styles.formBtnSaveText}>Guardar</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
                   )}
                 </View>
               )}
-
+              
               <View style={styles.divider} />
 
               {/* EMERGENCIAS HEADER */}
               <TouchableOpacity style={styles.settingRow} activeOpacity={0.7} onPress={() => setShowEmergencias(!showEmergencias)}>
                 <View style={styles.settingLeft}>
-                  <Ionicons name="medical" size={20} color="#EF4444" style={{ marginRight: 12 }} />
+                  <Ionicons name="medical" size={20} color={TC.vitalHeart} style={{ marginRight: 12 }} />
                   <Text style={styles.settingLabel}>Contactos de Emergencia</Text>
                 </View>
                 <Ionicons name={showEmergencias ? "chevron-down" : "chevron-forward"} size={18} color={TC.textMuted} />
               </TouchableOpacity>
 
               {showEmergencias && (
-                <View>
+                <View style={{ paddingBottom: 8 }}>
                   {emergenciasList.length === 0 ? (
-                    <View style={{ padding: 16, backgroundColor: '#F8FAFC' }}>
-                      <Text style={{ color: TC.textMuted, fontSize: 13, textAlign: 'center' }}>Aún no hay contactos de emergencia.</Text>
+                    <View style={{ padding: 16, backgroundColor: TC.inputBg, marginHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: TC.inputBorder }}>
+                      <Text style={{ color: TC.textMuted, fontSize: 13, textAlign: 'center', fontWeight: '500' }}>Aún no hay contactos de emergencia.</Text>
                     </View>
                   ) : (
                     emergenciasList.map((em) => (
-                      <View key={em.id}>
-                        <View style={[styles.settingRow, { backgroundColor: '#F8FAFC' }]}>
-                          <View style={styles.settingLeft}>
-                            <Ionicons name="call" size={16} color={TC.textMuted} style={{ marginRight: 12, marginLeft: 16 }} />
-                            <View>
-                              <Text style={styles.settingLabel}>{em.nombreContacto}</Text>
-                              <Text style={{ color: TC.textMuted, fontSize: 13 }}>{em.lada} {em.numero}</Text>
-                            </View>
+                      <View key={em.id} style={styles.contactCard}>
+                        <View style={styles.settingLeft}>
+                          <View style={[styles.contactIconBox, { backgroundColor: TC.vitalHeart + '08', borderColor: TC.vitalHeart + '20' }]}>
+                            <Ionicons name="call-outline" size={16} color={TC.vitalHeart} />
                           </View>
-                          <View style={{ flexDirection: 'row' }}>
-                            <TouchableOpacity onPress={() => editarEmergencia(em)} style={{ padding: 8 }}>
-                              <Ionicons name="pencil" size={20} color={TC.textMuted} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => eliminarEmergencia(em)} style={{ padding: 8 }}>
-                              <Ionicons name="trash-outline" size={20} color={TC.textMuted} />
-                            </TouchableOpacity>
+                          <View>
+                            <Text style={styles.contactName}>{em.nombreContacto}</Text>
+                            <Text style={styles.contactRole}>{em.lada} {em.numero}</Text>
                           </View>
                         </View>
-                        <View style={styles.divider} />
+                        <View style={styles.contactActions}>
+                          <TouchableOpacity onPress={() => editarEmergencia(em)} style={styles.contactActionBtn}>
+                            <Ionicons name="pencil-outline" size={16} color={TC.textBody} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => eliminarEmergencia(em)} style={[styles.contactActionBtn, { backgroundColor: TC.vitalHeart + '10', borderColor: TC.vitalHeart + '25' }]}>
+                            <Ionicons name="trash-outline" size={16} color={TC.vitalHeart} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     ))
                   )}
 
                   {!showFormEmergencia ? (
-                    <TouchableOpacity onPress={() => setShowFormEmergencia(true)} style={{ padding: 16, alignItems: 'center', backgroundColor: '#F8FAFC' }}>
-                      <Text style={{ color: TC.accent, fontWeight: '600' }}>+ Añadir Emergencia</Text>
+                    <TouchableOpacity onPress={() => setShowFormEmergencia(true)} style={[styles.addContactCard, { backgroundColor: TC.vitalHeart + '08', borderColor: TC.vitalHeart + '20' }]}>
+                      <Ionicons name="add-circle-outline" size={20} color={TC.vitalHeart} />
+                      <Text style={[styles.addContactText, { color: TC.vitalHeart }]}>Añadir Emergencia</Text>
                     </TouchableOpacity>
                   ) : (
-                    <View style={{ padding: 16, backgroundColor: '#F8FAFC' }}>
-                      <Text style={[styles.inputLabel, { marginBottom: 12, fontSize: 14 }]}>Nuevo Contacto de Emergencia</Text>
-                      <FloatingInput value={emergenciaNombre} onChangeText={setEmergenciaNombre} placeholder="Nombre del Contacto" />
+                    <View style={styles.formContainer}>
+                      <Text style={styles.formTitle}>
+                        {editingEmergenciaId ? 'Editar Emergencia' : 'Nuevo Contacto de Emergencia'}
+                      </Text>
+                      <SubformInput value={emergenciaNombre} onChangeText={setEmergenciaNombre} placeholder="Nombre del Contacto" />
                       <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <FloatingInput value={emergenciaLada} onChangeText={setEmergenciaLada} placeholder="Ej. +52" keyboardType="phone-pad" containerStyle={{ flex: 0.3 }} style={{ textAlign: 'center' }} />
-                        <FloatingInput value={emergenciaNumero} onChangeText={setEmergenciaNumero} placeholder="Número de Teléfono" keyboardType="phone-pad" containerStyle={{ flex: 1 }} />
+                        <SubformInput value={emergenciaLada} onChangeText={setEmergenciaLada} placeholder="Ej. +52" keyboardType="phone-pad" containerStyle={{ flex: 0.3 }} style={{ textAlign: 'center' }} />
+                        <SubformInput value={emergenciaNumero} onChangeText={setEmergenciaNumero} placeholder="Número de Teléfono" keyboardType="phone-pad" containerStyle={{ flex: 1 }} />
                       </View>
-                      <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+                      <View style={styles.formBtnRow}>
                         <TouchableOpacity 
                           onPress={() => {
                             setShowFormEmergencia(false);
@@ -840,12 +926,12 @@ export default function EditBabyScreen() {
                             setEmergenciaNombre('');
                             setEmergenciaNumero('');
                           }} 
-                          style={{ flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', backgroundColor: TC.inputBorder }}
+                          style={styles.formBtnCancel}
                         >
-                          <Text style={{ color: TC.textDark, fontWeight: 'bold' }}>Cancelar</Text>
+                          <Text style={styles.formBtnCancelText}>Cancelar</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={agregarEmergencia} style={{ flex: 1, backgroundColor: TC.textDark, padding: 12, borderRadius: 8, alignItems: 'center' }}>
-                          <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Guardar</Text>
+                        <TouchableOpacity onPress={agregarEmergencia} style={[styles.formBtnSave, { backgroundColor: TC.vitalHeart, shadowColor: TC.vitalHeart }]}>
+                          <Text style={styles.formBtnSaveText}>Guardar</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -858,7 +944,7 @@ export default function EditBabyScreen() {
           {/* Zona de Peligro */}
           <View style={[styles.section, { marginTop: 24 }]}>
             <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteProfile}>
-              <Ionicons name="trash-outline" size={20} color="#FFF" />
+              <Ionicons name="trash-outline" size={20} color={TC.vitalHeart} />
               <Text style={styles.deleteBtnText}>Eliminar Perfil del Bebé</Text>
             </TouchableOpacity>
           </View>
@@ -875,135 +961,315 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: TC.bg,
   },
+  /* ── Header ── */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 50,
+    paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: TC.card,
     borderBottomWidth: 1,
-    borderBottomColor: TC.inputBorder,
+    borderBottomColor: TC.inputBorder + '40',
+    backgroundColor: TC.bg,
   },
-  backBtn: {
-    padding: 8,
+  headerLeft: { width: 44 },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerRight: { width: 44, alignItems: 'flex-end' },
+  backCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: TC.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: TC.textDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  saveCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: TC.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: TC.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  headerLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: TC.textMuted,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 4,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: TC.textDark,
+    letterSpacing: -0.4,
   },
-  saveBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: TC.textDark,
-    borderRadius: 16,
-  },
-  saveBtnText: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
+
+  /* ── Scroll ── */
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 16,
     paddingBottom: 40,
   },
+
+  /* ── Sections ── */
   section: {
-    marginBottom: 28,
+    marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: TC.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 12,
     paddingHorizontal: 4,
   },
-  avatarRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: TC.card,
-    padding: 16,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: TC.inputBorder,
-    borderCurve: "continuous" as any,
-  },
-  avatarBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: TC.inputBg,
+  sectionIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    borderCurve: 'continuous' as any,
   },
-  avatarBtnActive: {
-    backgroundColor: TC.accentLight,
-    borderWidth: 2,
-    borderColor: TC.accent,
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: TC.textDark,
+    letterSpacing: -0.3,
   },
-  avatarEmoji: {
-    fontSize: 20,
-  },
+
+  /* ── Card Group ── */
   cardGroup: {
     backgroundColor: TC.card,
-    borderRadius: 24,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: TC.inputBorder,
     overflow: 'hidden',
-    borderCurve: "continuous" as any,
+    borderCurve: 'continuous' as any,
+    shadowColor: TC.textDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 4,
   },
-  inputRow: {
+
+  /* ── Input Fields ── */
+  inputFieldContainer: {
+    flex: 1,
+    backgroundColor: TC.inputBg,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    borderCurve: 'continuous' as any,
+  },
+  inputFieldLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: TC.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  inputFieldText: {
+    fontSize: 15,
+    color: TC.textDark,
+    fontWeight: '600',
+    padding: 0,
+  },
+
+  /* ── Accordion Settings ── */
+  settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 18,
   },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: TC.textDark,
+  },
+
+  /* ── Switch Row ── */
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: TC.textDark,
     flex: 1,
   },
-  textInput: {
-    flex: 1,
-    textAlign: 'right',
-    fontSize: 16,
-    color: TC.textBody,
-    fontWeight: '500',
+
+  /* ── Contact Card List ── */
+  contactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    backgroundColor: TC.inputBg,
+    marginHorizontal: 16,
+    marginVertical: 6,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    borderCurve: 'continuous' as any,
   },
-  textArea: {
-    width: '100%',
-    minHeight: 60,
-    fontSize: 15,
-    color: TC.textBody,
-    textAlignVertical: 'top',
+  contactIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: TC.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    borderCurve: 'continuous' as any,
   },
-  divider: {
-    height: 1,
-    backgroundColor: TC.inputBorder,
-    marginLeft: 16,
+  contactName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: TC.textDark,
   },
-  chipRow: {
+  contactRole: {
+    fontSize: 12,
+    color: TC.textMuted,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  contactActions: {
     flexDirection: 'row',
     gap: 8,
   },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: TC.inputBg,
-    borderRadius: 12,
+  contactActionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: TC.card,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: TC.inputBorder,
+    borderCurve: 'continuous' as any,
+  },
+
+  /* ── Add Contact Action ── */
+  addContactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 12,
+    backgroundColor: TC.accentLight,
+    borderWidth: 1.5,
+    borderColor: TC.accent + '30',
+    borderRadius: 18,
+    borderStyle: 'dashed',
+  },
+  addContactText: {
+    color: TC.accent,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  /* ── Subform Container ── */
+  formContainer: {
+    padding: 20,
+    backgroundColor: TC.inputBg,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    gap: 10,
+  },
+  formTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: TC.textDark,
+    marginBottom: 6,
+    letterSpacing: 0.5,
+  },
+  contactInput: {
+    textAlign: 'left',
+    backgroundColor: TC.card,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    fontSize: 15,
+    color: TC.textDark,
+    fontWeight: '600',
+  },
+  formBtnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 10,
+  },
+  formBtnCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: TC.trackBg,
+    alignItems: 'center',
+    borderCurve: 'continuous' as any,
+  },
+  formBtnCancelText: {
+    color: TC.textBody,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  formBtnSave: {
+    flex: 1.5,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: TC.accent,
+    alignItems: 'center',
+    borderCurve: 'continuous' as any,
+    shadowColor: TC.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  formBtnSaveText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+
+  /* ── Chips ── */
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: TC.inputBg,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: TC.inputBorder,
+    borderCurve: 'continuous' as any,
   },
   chipActive: {
     backgroundColor: TC.accentLight,
@@ -1011,53 +1277,110 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: TC.textMuted,
   },
   chipTextActive: {
     color: TC.accent,
   },
-  settingRow: {
+
+  /* ── Divider ── */
+  divider: {
+    height: 1,
+    backgroundColor: TC.inputBorder,
+    marginLeft: 16,
+  },
+
+  /* ── Emoji selector (matches onboarding.tsx) ── */
+  emojiSelectorButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
+    gap: 16,
+    backgroundColor: TC.inputBg,
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: TC.inputBorder,
   },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: TC.textDark,
-  },
-  contactInput: {
-    textAlign: 'left',
-    backgroundColor: '#FFF',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: TC.inputBorder
-  },
-  deleteBtn: {
-    flexDirection: 'row',
-    backgroundColor: '#EF4444',
-    padding: 16,
-    borderRadius: 16,
+  emojiAvatarWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: TC.card,
+    borderWidth: 2,
+    borderColor: TC.accent,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  emojiLabelTitle: {
+    fontWeight: '700',
+    color: TC.textDark,
+    fontSize: 14,
+  },
+  emojiLabelSubtitle: {
+    color: TC.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  emojiDropdown: {
+    backgroundColor: TC.inputBg,
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
     gap: 12,
+    marginTop: 12,
+  },
+  emojiCategoryLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: TC.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  emojiItem: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    backgroundColor: TC.card,
+    borderColor: TC.inputBorder,
+  },
+  emojiItemActive: {
+    backgroundColor: TC.accentLight,
+    borderColor: TC.accent,
+  },
+
+  /* ── Danger Zone ── */
+  deleteBtn: {
+    flexDirection: 'row',
+    backgroundColor: TC.vitalHeart + '08',
+    borderWidth: 1.5,
+    borderColor: TC.vitalHeart + '20',
+    padding: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderCurve: 'continuous' as any,
   },
   deleteBtnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
+    color: TC.vitalHeart,
+    fontSize: 15,
+    fontWeight: '800',
   },
+
+  /* ── Modals ── */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -1065,17 +1388,22 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#FFF',
     borderRadius: 28,
-    padding: 24,
+    padding: 28,
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 340,
     alignItems: 'center',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-  } as any,
+    shadowColor: TC.textDark,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    borderCurve: 'continuous' as any,
+  },
   modalIconBox: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: TC.vitalHeart + '12',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -1087,11 +1415,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modalDesc: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
     color: TC.textBody,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
     marginBottom: 24,
   },
   modalBtnRow: {
@@ -1103,24 +1431,29 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: TC.trackBg,
     alignItems: 'center',
   },
   modalBtnCancelText: {
     fontSize: 15,
     fontWeight: '700',
-    color: TC.textDark,
+    color: TC.textBody,
   },
   modalBtnDelete: {
-    flex: 1,
+    flex: 1.2,
     paddingVertical: 14,
     borderRadius: 16,
-    backgroundColor: '#EF4444',
+    backgroundColor: TC.vitalHeart,
     alignItems: 'center',
+    shadowColor: TC.vitalHeart,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
   modalBtnDeleteText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFF',
   },
 });

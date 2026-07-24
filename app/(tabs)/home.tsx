@@ -359,31 +359,31 @@ export default function HomeScreen() {
 
         {/* ── Cloud Sync Banner ── */}
         {!session ? (
-          <View style={{ backgroundColor: '#FCE7F3', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-            <View style={{ backgroundColor: '#FFF', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
-              <Ionicons name="cloud-offline" size={24} color="#9CA3AF" />
+          <View style={{ backgroundColor: TC.accentLight, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
+            <View style={{ backgroundColor: TC.card, width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+              <Ionicons name="cloud-offline" size={24} color={TC.textMuted} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1F2937' }}>Modo Local Activo</Text>
-              <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Los datos solo existen en tu dispositivo.</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: TC.textDark }}>Modo Local Activo</Text>
+              <Text style={{ fontSize: 13, color: TC.textBody, marginTop: 2 }}>Los datos solo existen en tu dispositivo.</Text>
             </View>
             <TouchableOpacity
               onPress={() => router.push('/login')}
-              style={{ backgroundColor: '#3730A3', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }}
+              style={{ backgroundColor: TC.textDark, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }}
             >
               <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>Iniciar Sesión</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={{ backgroundColor: '#EEF2FF', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-            <View style={{ backgroundColor: '#FFF', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
-              <Ionicons name="cloud-done" size={24} color={TC.vitalHeart} />
+          <View style={{ backgroundColor: TC.accentLight, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: TC.accent + '30' }}>
+            <View style={{ backgroundColor: TC.card, width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+              <Ionicons name="cloud-done" size={24} color={TC.accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1F2937' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: TC.textDark }}>
                 Nube Activa {isSyncing && " (Sincronizando...)"}
               </Text>
-              <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
+              <Text style={{ fontSize: 13, color: TC.textBody, marginTop: 2 }}>
                 Advertencia: la transmisión remota puede tener retraso.
               </Text>
             </View>
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   profilePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: TC.card,
     padding: 8,
     paddingRight: 20,
     borderRadius: 36,
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: TC.trackBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFF',
+    backgroundColor: TC.card,
     borderWidth: 2,
     borderColor: TC.inputBorder,
     borderStyle: 'dashed',
@@ -587,19 +587,19 @@ const styles = StyleSheet.create({
   bleBannerDisconnected: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF0F0', // Soft red
+    backgroundColor: TC.vitalHeart + '08',
     borderRadius: 24,
     padding: 16,
     marginVertical: 4,
     borderWidth: 1,
-    borderColor: '#FDD8D8',
+    borderColor: TC.vitalHeart + '20',
     borderCurve: "continuous" as any,
   },
   bleIconBoxDisconnected: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#F4847E', // Theme accent coral
+    backgroundColor: TC.vitalHeart,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -608,19 +608,19 @@ const styles = StyleSheet.create({
   bleBannerConnected: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FAF8', // Soft green
+    backgroundColor: TC.accentLight,
     borderRadius: 24,
     padding: 16,
     marginVertical: 4,
     borderWidth: 1,
-    borderColor: '#D2EFE9',
+    borderColor: TC.accent + '30',
     borderCurve: "continuous" as any,
   },
   bleIconBoxConnected: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#E0F4F0',
+    backgroundColor: TC.accent + '15',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -632,14 +632,14 @@ const styles = StyleSheet.create({
   bleTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#D32F2F',
+    color: TC.vitalHeart,
     letterSpacing: -0.3,
     marginBottom: 2,
   },
   bleTitleConnected: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#2E7D32',
+    color: TC.accent,
     letterSpacing: -0.3,
     marginBottom: 2,
   },
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   bleBtn: {
-    backgroundColor: '#F4847E',
+    backgroundColor: TC.vitalHeart,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 20,
@@ -660,15 +660,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   bleBtnOutline: {
-    backgroundColor: '#FFF',
+    backgroundColor: TC.card,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#D2EFE9',
+    borderColor: TC.accent + '30',
   },
   bleBtnOutlineText: {
-    color: '#2E7D32',
+    color: TC.accent,
     fontWeight: '700',
     fontSize: 14,
   },

@@ -10,16 +10,12 @@ import {
   Image,
   Switch,
   Modal,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDatabase } from '@/src/database/context';
-// Native DateTimePicker removed: @react-native-community/datetimepicker@8.4.4 crashes
-// on Hermes (RN 0.81+) because it mutates a frozen global Event prototype.
-// Replaced with a pure-RN formatted text input.
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import WaveHeader from '@/components/WaveHeader';
 import PillInput from '@/components/PillInput';
 import ComboDatePicker from '@/components/ComboDatePicker';
 import GradientButton from '@/components/GradientButton';
@@ -53,11 +49,11 @@ const EMOJI_CATEGORIES = [
 export default function Onboarding() {
   const database = useDatabase();
   const { showToast, ToastComponent } = useToast();
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
   const [bebes, setBebes] = useState<Bebe[]>([{ 
     id: 1, nombre: '', avatar: '❤️', fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, mostrarAvanzado: false 
   }]);
-  // No native date picker state needed — using custom InlineDatePicker wheel
   const [showEmojiPickerId, setShowEmojiPickerId] = useState<number | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -77,7 +73,6 @@ export default function Onboarding() {
   };
 
   const guardarDatos = async () => {
-    // Validar fechas futuras antes de guardar
     for (let i = 0; i < bebes.length; i++) {
       const bebe = bebes[i];
       if (bebe.fechaNacimiento) {
@@ -117,8 +112,8 @@ export default function Onboarding() {
           await database.get('datos_personales').create((d: any) => {
             d.idPerfil = perfil.id;
             d.primerNombre = bebe.nombre.trim();
-            d.apellidoPaterno = ''; // Debe completarse después
-            d.sexo = 'No Especificado'; // Debe completarse después
+            d.apellidoPaterno = ''; 
+            d.sexo = 'No Especificado'; 
             d.fechaNacimiento = fechaParsed.getTime();
           });
 
@@ -152,7 +147,6 @@ export default function Onboarding() {
         }
       });
       
-      // Lanzar notificaciones fuera de la transacción de la DB
       for (const name of addedNames) {
         await notifyCommon("Nuevo bebé registrado", `El perfil de ${name} está listo en TinyCare.`);
       }
@@ -167,232 +161,236 @@ export default function Onboarding() {
   return (
     <View style={styles.root}>
       {ToastComponent}
-      <WaveHeader height={300} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
           bounces={false}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.logoArea}>
+          {/* Logo Section */}
+          <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
               <Image 
                 source={require('@/assets/logo.jpeg')} 
-                style={{ width: 128, height: 128, marginTop: 18 }} 
+                style={styles.logoImage} 
                 resizeMode="cover" 
               />
             </View>
+            <Text style={styles.appName}>TinyCare</Text>
+            <Text style={styles.appTagline}>Vigilancia Pediátrica Inteligente</Text>
           </View>
 
-          <View style={styles.formSection}>
-            {step === 1 ? (
-              <View>
-                <Text style={styles.greeting}>¡Bienvenido!</Text>
-                <Text style={styles.subtitle}>
-                  El monitor inteligente para los más pequeños. Funciona sin conexión, protege tu privacidad y sin obligarte a crear cuentas.
-                </Text>
-                
-                <GradientButton
-                  label="CONFIGURACIÓN RÁPIDA"
-                  onPress={() => setStep(2)}
-                  style={styles.mainBtn}
-                />
+          {step === 1 ? (
+            /* Step 1: Welcome */
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={[styles.iconBadge, { backgroundColor: TC.accent + '15' }]}>
+                  <Ionicons name="sparkles" size={18} color={TC.accent} />
+                </View>
+                <Text style={styles.cardTitle}>¡Bienvenido!</Text>
               </View>
-            ) : (
-              <View>
+              
+              <Text style={styles.paragraph}>
+                El monitor inteligente para los más pequeños. Funciona sin conexión, protege tu privacidad y te acompaña sin obligarte a crear cuentas molestas.
+              </Text>
+              
+              <GradientButton
+                label="CONFIGURACIÓN RÁPIDA"
+                onPress={() => setStep(2)}
+                style={styles.mainBtn}
+              />
+            </View>
+          ) : (
+            /* Step 2: Form */
+            <View style={{ gap: 20 }}>
+              <View style={styles.step2Header}>
                 <Text style={styles.greeting}>¿A quién vamos a cuidar?</Text>
                 <Text style={styles.subtitle}>
-                  Para protegerlos mejor, necesitamos datos precisos para calibrar las alertas médicas.
+                  Necesitamos algunos datos iniciales para calibrar correctamente las alertas médicas de tus bebés.
                 </Text>
+              </View>
 
-                {bebes.map((bebe, index) => (
-                  <View key={bebe.id} style={styles.bebeCard}>
-                    <View style={styles.bebeHeader}>
-                      <Text style={styles.bebeLabel}>BEBÉ {index + 1}</Text>
-                      {bebes.length > 1 && (
-                        <TouchableOpacity onPress={() => quitarBebe(bebe.id)}>
-                          <Ionicons name="close" size={24} color={TC.textBody} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    
-                    {/* ── Emoji Picker (mismo que edit-baby) ── */}
-                    <TouchableOpacity
-                      onPress={() => setShowEmojiPickerId(showEmojiPickerId === bebe.id ? null : bebe.id)}
-                      style={{
-                        flexDirection: 'row', alignItems: 'center', gap: 16,
-                        backgroundColor: '#F8FAFC', borderRadius: 16, padding: 14,
-                        borderWidth: 1.5,
-                        borderColor: showEmojiPickerId === bebe.id ? TC.accent : TC.inputBorder,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <View style={{
-                        width: 56, height: 56, borderRadius: 28,
-                        backgroundColor: '#FFF5F7', borderWidth: 2, borderColor: TC.accent,
-                        alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Text style={{ fontSize: 32 }}>{bebe.avatar || '❤️'}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: '700', color: TC.textDark, fontSize: 14 }}>Icono del bebé</Text>
-                        <Text style={{ color: TC.textMuted, fontSize: 12, marginTop: 2 }}>
-                          {showEmojiPickerId === bebe.id ? 'Toca un emoji para seleccionarlo' : 'Toca para abrir el selector'}
-                        </Text>
-                      </View>
-                      <Ionicons
-                        name={showEmojiPickerId === bebe.id ? 'chevron-up' : 'chevron-down'}
-                        size={20} color={TC.textMuted}
-                      />
-                    </TouchableOpacity>
-
-                    {showEmojiPickerId === bebe.id && (
-                      <View style={{
-                        marginBottom: 12, backgroundColor: '#F8FAFC',
-                        borderRadius: 16, padding: 12,
-                        borderWidth: 1, borderColor: TC.inputBorder,
-                      }}>
-                        {EMOJI_CATEGORIES.map(cat => (
-                          <View key={cat.label} style={{ marginBottom: 12 }}>
-                            <Text style={{ fontSize: 11, color: TC.textMuted, fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 }}>
-                              {cat.label.toUpperCase()}
-                            </Text>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                              {cat.emojis.map(emoji => (
-                                <TouchableOpacity
-                                  key={emoji}
-                                  onPress={() => {
-                                    actualizarBebe(bebe.id, 'avatar', emoji);
-                                    setShowEmojiPickerId(null);
-                                  }}
-                                  style={{
-                                    width: 44, height: 44, borderRadius: 22,
-                                    alignItems: 'center', justifyContent: 'center',
-                                    borderWidth: 2,
-                                    backgroundColor: bebe.avatar === emoji ? '#FFF5F7' : '#FFF',
-                                    borderColor: bebe.avatar === emoji ? TC.accent : TC.inputBorder,
-                                  }}
-                                >
-                                  <Text style={{ fontSize: 24 }}>{emoji}</Text>
-                                </TouchableOpacity>
-                              ))}
-                            </View>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                    <PillInput
-                      icon="person-outline"
-                      placeholder="Nombre o apodo"
-                      value={bebe.nombre}
-                      onChangeText={(t) => actualizarBebe(bebe.id, 'nombre', t)}
-                      containerStyle={styles.inputSpacing}
-                    />
-
-                    <ComboDatePicker
-                      value={bebe.fechaNacimiento}
-                      onChange={(t) => actualizarBebe(bebe.id, 'fechaNacimiento', t)}
-                    />
-
-                    <PillInput
-                      icon="scale-outline"
-                      placeholder="Peso actual (kg)"
-                      keyboardType="numeric"
-                      value={bebe.peso}
-                      onChangeText={(t) => actualizarBebe(bebe.id, 'peso', t)}
-                      containerStyle={styles.inputSpacing}
-                    />
-
-                    <TouchableOpacity 
-                      style={styles.advancedToggle} 
-                      onPress={() => actualizarBebe(bebe.id, 'mostrarAvanzado', !bebe.mostrarAvanzado)}
-                    >
-                      <Ionicons name={bebe.mostrarAvanzado ? "chevron-up" : "chevron-down"} size={20} color={TC.accent} />
-                      <Text style={styles.advancedText}>Condiciones Médicas (Opcional)</Text>
-                    </TouchableOpacity>
-
-                    {bebe.mostrarAvanzado && (
-                      <View style={styles.advancedSection}>
-                        <View style={styles.switchRow}>
-                          <Text style={styles.switchLabel}>¿Nació prematuro?</Text>
-                          <Switch 
-                            value={bebe.esPrematuro} 
-                            onValueChange={(v) => actualizarBebe(bebe.id, 'esPrematuro', v)} 
-                            trackColor={{ true: TC.accent, false: '#CBD5E1' }}
-                          />
-                        </View>
-
-                        {bebe.esPrematuro && (
-                          <PillInput
-                            icon="time-outline"
-                            placeholder="Semanas de gestación"
-                            keyboardType="numeric"
-                            value={bebe.semanasGestacion}
-                            onChangeText={(t) => actualizarBebe(bebe.id, 'semanasGestacion', t)}
-                            containerStyle={styles.inputSpacing}
-                          />
-                        )}
-
-                        <View style={styles.switchRow}>
-                          <Text style={styles.switchLabel}>Alto riesgo respiratorio (SDR)</Text>
-                          <Switch 
-                            value={bebe.riesgoSDR} 
-                            onValueChange={(v) => actualizarBebe(bebe.id, 'riesgoSDR', v)} 
-                            trackColor={{ true: TC.accent, false: '#CBD5E1' }}
-                          />
-                        </View>
-                      </View>
+              {bebes.map((bebe, index) => (
+                <View key={bebe.id} style={styles.bebeCard}>
+                  <View style={styles.bebeHeader}>
+                    <Text style={styles.bebeLabel}>BEBÉ {index + 1}</Text>
+                    {bebes.length > 1 && (
+                      <TouchableOpacity 
+                        onPress={() => quitarBebe(bebe.id)}
+                        style={styles.removeButton}
+                      >
+                        <Ionicons name="close" size={18} color={TC.textBody} />
+                      </TouchableOpacity>
                     )}
                   </View>
-                ))}
+                  
+                  {/* Emoji Avatar Selector */}
+                  <TouchableOpacity
+                    onPress={() => setShowEmojiPickerId(showEmojiPickerId === bebe.id ? null : bebe.id)}
+                    style={[
+                      styles.emojiSelectorButton,
+                      showEmojiPickerId === bebe.id && { borderColor: TC.accent }
+                    ]}
+                  >
+                    <View style={styles.emojiAvatarWrapper}>
+                      <Text style={{ fontSize: 28 }}>{bebe.avatar || '❤️'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.emojiLabelTitle}>Icono del bebé</Text>
+                      <Text style={styles.emojiLabelSubtitle}>
+                        {showEmojiPickerId === bebe.id ? 'Selecciona un emoji' : 'Toca para cambiar'}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={showEmojiPickerId === bebe.id ? 'chevron-up' : 'chevron-down'}
+                      size={20} 
+                      color={TC.textMuted}
+                    />
+                  </TouchableOpacity>
 
-                <TouchableOpacity style={styles.addBtn} onPress={agregarBebe}>
-                  <Ionicons name="add-circle-outline" size={20} color={TC.accent} />
-                  <Text style={styles.addText}>Añadir otro bebé</Text>
-                </TouchableOpacity>
+                  {/* Emoji Dropdown list */}
+                  {showEmojiPickerId === bebe.id && (
+                    <View style={styles.emojiDropdown}>
+                      {EMOJI_CATEGORIES.map(cat => (
+                        <View key={cat.label} style={{ gap: 6 }}>
+                          <Text style={styles.emojiCategoryLabel}>
+                            {cat.label.toUpperCase()}
+                          </Text>
+                          <View style={styles.emojiGrid}>
+                            {cat.emojis.map(emoji => (
+                              <TouchableOpacity
+                                key={emoji}
+                                onPress={() => {
+                                  actualizarBebe(bebe.id, 'avatar', emoji);
+                                  setShowEmojiPickerId(null);
+                                }}
+                                style={[
+                                  styles.emojiItem,
+                                  bebe.avatar === emoji && styles.emojiItemActive
+                                ]}
+                              >
+                                <Text style={{ fontSize: 22 }}>{emoji}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
 
-                <GradientButton
-                  label="¡TODO LISTO!"
-                  onPress={guardarDatos}
-                  style={styles.mainBtn}
-                />
-              </View>
-            )}
-          </View>
+                  <PillInput
+                    icon="person-outline"
+                    placeholder="Nombre o apodo"
+                    value={bebe.nombre}
+                    onChangeText={(t) => actualizarBebe(bebe.id, 'nombre', t)}
+                  />
+
+                  <ComboDatePicker
+                    value={bebe.fechaNacimiento}
+                    onChange={(t) => actualizarBebe(bebe.id, 'fechaNacimiento', t)}
+                  />
+
+                  <PillInput
+                    icon="scale-outline"
+                    placeholder="Peso actual (kg)"
+                    keyboardType="numeric"
+                    value={bebe.peso}
+                    onChangeText={(t) => actualizarBebe(bebe.id, 'peso', t)}
+                  />
+
+                  {/* Advanced Toggle */}
+                  <TouchableOpacity 
+                    style={styles.advancedToggle} 
+                    onPress={() => actualizarBebe(bebe.id, 'mostrarAvanzado', !bebe.mostrarAvanzado)}
+                  >
+                    <Ionicons name={bebe.mostrarAvanzado ? "chevron-up" : "chevron-down"} size={18} color={TC.accent} />
+                    <Text style={styles.advancedText}>Condiciones Médicas (Opcional)</Text>
+                  </TouchableOpacity>
+
+                  {bebe.mostrarAvanzado && (
+                    <View style={styles.advancedSection}>
+                      <View style={styles.switchCardRow}>
+                        <Text style={styles.switchLabel}>¿Nació prematuro?</Text>
+                        <Switch 
+                          value={bebe.esPrematuro} 
+                          onValueChange={(v) => actualizarBebe(bebe.id, 'esPrematuro', v)} 
+                          trackColor={{ true: TC.accent, false: '#CBD5E1' }}
+                          thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
+                        />
+                      </View>
+
+                      {bebe.esPrematuro && (
+                        <PillInput
+                          icon="time-outline"
+                          placeholder="Semanas de gestación"
+                          keyboardType="numeric"
+                          value={bebe.semanasGestacion}
+                          onChangeText={(t) => actualizarBebe(bebe.id, 'semanasGestacion', t)}
+                        />
+                      )}
+
+                      <View style={styles.switchCardRow}>
+                        <Text style={styles.switchLabel}>Riesgo de SDR respiratorio</Text>
+                        <Switch 
+                          value={bebe.riesgoSDR} 
+                          onValueChange={(v) => actualizarBebe(bebe.id, 'riesgoSDR', v)} 
+                          trackColor={{ true: TC.accent, false: '#CBD5E1' }}
+                          thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
+                        />
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ))}
+
+              <TouchableOpacity style={styles.addBtn} onPress={agregarBebe}>
+                <Ionicons name="add-circle-outline" size={20} color={TC.accent} />
+                <Text style={styles.addText}>Añadir otro bebé</Text>
+              </TouchableOpacity>
+
+              <GradientButton
+                label="¡TODO LISTO!"
+                onPress={guardarDatos}
+                style={styles.mainBtn}
+              />
+            </View>
+          )}
 
           <Text style={styles.footer}>
-            Acompañando a tu bebé, en cada latido
+            Acompañando a tu bebé en cada latido
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* Success Modal */}
       <Modal transparent visible={showSuccessModal} animationType="fade">
-        <View style={{ flex: 1, backgroundColor: 'rgba(61,44,46,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-          <View style={{ backgroundColor: '#FFF', borderRadius: 28, padding: 32, width: '100%', alignItems: 'center', shadowColor: TC.shadow, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
             
-            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: TC.accentLight, justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
-              <Ionicons name="sparkles" size={40} color={TC.accent} />
+            <View style={styles.modalIconWrapper}>
+              <Ionicons name="sparkles" size={36} color={TC.accent} />
             </View>
 
-            <Text style={{ fontSize: 26, fontWeight: '800', color: TC.textDark, marginBottom: 12, textAlign: 'center' }}>
+            <Text style={styles.modalTitle}>
               ¡Casi listo!
             </Text>
             
-            <Text style={{ fontSize: 16, color: TC.textBody, textAlign: 'center', lineHeight: 24, marginBottom: 24 }}>
-              Has creado el perfil básico. Para completar la información de tu bebé, dirígete a la sección de <Text style={{fontWeight: '800', color: TC.textDark}}>Perfiles</Text> en la app.
+            <Text style={styles.modalParagraph}>
+              Has creado el perfil básico de tu bebé. Para completar toda la información clínica, dirígete a la sección de <Text style={{fontWeight: '800', color: TC.textDark}}>Perfiles</Text> en la app.
             </Text>
 
-            <View style={{ backgroundColor: TC.inputBg, borderRadius: 16, padding: 16, width: '100%', marginBottom: 32, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: TC.inputBorder }}>
-               <View style={{ backgroundColor: '#FFF', borderRadius: 12, padding: 8, marginRight: 12, shadowColor: TC.shadow, shadowOpacity: 0.1, shadowRadius: 5, elevation: 2 }}>
-                 <Ionicons name="person-circle" size={28} color={TC.accent} />
+            <View style={styles.modalTipContainer}>
+               <View style={styles.modalTipIcon}>
+                 <Ionicons name="person-circle" size={24} color={TC.accent} />
                </View>
-               <Text style={{ flex: 1, fontSize: 13, color: TC.textBody, lineHeight: 18 }}>Ahí podrás agregar sus apellidos, sexo y datos médicos importantes para protegerlo mejor.</Text>
+               <Text style={styles.modalTipText}>
+                 Ahí podrás configurar sus apellidos, sexo y detalles adicionales para asegurar la precisión del sistema de monitoreo.
+               </Text>
             </View>
 
             <GradientButton
@@ -411,134 +409,362 @@ export default function Onboarding() {
   );
 }
 
-/* ───────────── Styles ───────────── */
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: TC.bg,
   },
-  scroll: {
-    flexGrow: 1,
-    paddingBottom: 32,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 60,
+    gap: 24,
   },
-  logoArea: {
+  logoSection: {
     alignItems: 'center',
-    marginTop: Platform.OS === 'ios' ? 80 : 64,
+    marginTop: 20,
     marginBottom: 8,
-    zIndex: 10,
   },
   logoCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#FFF',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: TC.card,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
-    shadowColor: TC.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    shadowColor: TC.textDark,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 6,
     overflow: 'hidden',
   },
-  formSection: {
-    paddingHorizontal: 28,
-    paddingTop: 80,
+  logoImage: {
+    width: 130,
+    height: 130,
+    marginTop: 18,
   },
-  greeting: {
-    fontSize: 32,
+  appName: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: TC.textDark,
+    letterSpacing: -0.6,
+    marginTop: 16,
+  },
+  appTagline: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: TC.accent,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+  card: {
+    backgroundColor: TC.card,
+    borderRadius: 32,
+    padding: 24,
+    borderCurve: 'continuous' as any,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    shadowColor: TC.textDark,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 6,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  iconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderCurve: 'continuous' as any,
+  },
+  cardTitle: {
+    fontSize: 18,
     fontWeight: '800',
     color: TC.textDark,
+    letterSpacing: -0.4,
+  },
+  paragraph: {
+    fontSize: 15,
+    color: TC.textBody,
+    lineHeight: 24,
+    fontWeight: '500',
+    marginBottom: 24,
+  },
+  step2Header: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  greeting: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: TC.textDark,
+    letterSpacing: -0.4,
     marginBottom: 6,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    fontWeight: '400',
+    fontSize: 14,
     color: TC.textBody,
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  inputSpacing: {
-    marginBottom: 16,
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: 16,
   },
   bebeCard: {
-    backgroundColor: '#FFF',
-    padding: 20,
-    borderRadius: 24,
-    marginBottom: 16,
-    shadowColor: TC.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: TC.card,
+    borderRadius: 32,
+    padding: 24,
+    borderCurve: 'continuous' as any,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: TC.inputBorder,
+    shadowColor: TC.textDark,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 6,
+    gap: 16,
   },
   bebeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: TC.inputBorder,
+    paddingBottom: 14,
+    marginBottom: 4,
   },
   bebeLabel: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     color: TC.accent,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
-
+  removeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: TC.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+  },
+  emojiSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: TC.inputBg,
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: TC.inputBorder,
+  },
+  emojiAvatarWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: TC.card,
+    borderWidth: 2,
+    borderColor: TC.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emojiLabelTitle: {
+    fontWeight: '700',
+    color: TC.textDark,
+    fontSize: 14,
+  },
+  emojiLabelSubtitle: {
+    color: TC.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  emojiDropdown: {
+    backgroundColor: TC.inputBg,
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    gap: 12,
+  },
+  emojiCategoryLabel: {
+    fontSize: 11,
+    color: TC.textMuted,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  emojiItem: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    backgroundColor: TC.card,
+    borderColor: TC.inputBorder,
+  },
+  emojiItemActive: {
+    borderColor: TC.accent,
+    backgroundColor: TC.accent + '10',
+  },
+  advancedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: TC.inputBorder,
+    paddingTop: 16,
+  },
+  advancedText: {
+    fontSize: 14,
+    color: TC.accent,
+    fontWeight: '700',
+  },
+  advancedSection: {
+    gap: 16,
+    paddingTop: 4,
+  },
+  switchCardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: TC.inputBg,
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+  },
+  switchLabel: {
+    fontSize: 14,
+    color: TC.textBody,
+    fontWeight: '600',
+  },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 24,
-    paddingVertical: 12,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  switchLabel: {
-    fontSize: 14,
-    color: TC.textBody,
-    fontWeight: '500',
-  },
-  advancedToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    marginTop: 8,
-  },
-  advancedText: {
-    fontSize: 14,
-    color: TC.accent,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  advancedSection: {
-    paddingTop: 12,
+    padding: 16,
+    backgroundColor: TC.card,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: TC.accent,
+    borderStyle: 'dashed',
+    shadowColor: TC.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   addText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: TC.accent,
   },
   mainBtn: {
-    marginTop: 16,
+    width: '100%',
   },
   footer: {
     textAlign: 'center',
-    fontSize: 13,
-    fontWeight: '500',
-    color: TC.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    color: TC.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     marginTop: 'auto',
     paddingVertical: 20,
     paddingHorizontal: 28,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(61,44,46,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: TC.card,
+    borderRadius: 32,
+    padding: 32,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: TC.textDark,
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+  },
+  modalIconWrapper: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: TC.accent + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderCurve: 'continuous' as any,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: TC.textDark,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalParagraph: {
+    fontSize: 15,
+    color: TC.textBody,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalTipContainer: {
+    backgroundColor: TC.inputBg,
+    borderRadius: 20,
+    padding: 16,
+    width: '100%',
+    marginBottom: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    gap: 12,
+  },
+  modalTipIcon: {
+    backgroundColor: TC.card,
+    borderRadius: 12,
+    padding: 6,
+    shadowColor: TC.textDark,
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+  },
+  modalTipText: {
+    flex: 1,
+    fontSize: 13,
+    color: TC.textBody,
+    lineHeight: 18,
+    fontWeight: '500',
   },
 });
