@@ -96,8 +96,8 @@ export const evaluateBiometrics = async (data: Biometrics, deviceId?: string) =>
     updateForegroundNotification(data);
   }
 
-  // Actividad estimada (En la v2 vendrá desde un acelerómetro, ahora es default)
-  const actividad: EstadoActividad = 'Reposo'; 
+  // Actividad real enviada por el MPU6050 del ESP32 (fusión sensorial v2)
+  const actividad: EstadoActividad = data.activity;
 
   // --- EVALUACIÓN MEDICA INTELIGENTE (Requiere Perfil) ---
   if (perfilContexto && perfilId) {
