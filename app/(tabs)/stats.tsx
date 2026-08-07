@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Modal, Pressable, Animated, TextInput, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Modal, Pressable, Animated, TextInput, Alert, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
-let MailComposer: any = null;
-try {
-  MailComposer = require("expo-mail-composer");
-} catch (e) {
-  console.warn("ExpoMailComposer is not available", e);
-}
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import { TC } from "../../components/theme";
 import { useToast } from "../../components/Toast";
 
@@ -291,20 +287,12 @@ const METRICS = [
 ];
 
 /* ── Send to Pediatrician ── */
-const SendToPediatrician = ({ metrics, period, showToast }: { metrics: typeof METRICS; period: string; showToast: any }) => {
+const SendToPediatrician = ({ metrics, period, patientName, showToast }: { metrics: typeof METRICS; period: string; patientName: string; showToast: any }) => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const handleSend = async () => {
-    const statsBody = metrics.map(m => {
-      const data = period === "24H" ? m.data24H : m.data7D;
-      const avg = (data.reduce((a, b) => a + b, 0) / data.length).toFixed(1);
-      return `• ${m.fullName}: ${m.value} ${m.unit} (Prom: ${avg}, Estado: ${m.status})`;
-    }).join("\n");
-
-    const body = `Reporte TinyCare — ${period === "24H" ? "Últimas 24h" : "Últimos 7 días"}\n\n${statsBody}${message.trim() ? `\n\nNota del tutor:\n${message.trim()}` : ""}\n\n— Enviado desde TinyCare`;
-
     setSending(true);
     Animated.sequence([
       Animated.timing(pulseAnim, { toValue: 0.94, duration: 80, useNativeDriver: true }),
@@ -312,19 +300,181 @@ const SendToPediatrician = ({ metrics, period, showToast }: { metrics: typeof ME
     ]).start();
 
     try {
-      if (!MailComposer) {
-        showToast("warning", "El módulo de correo no está disponible.");
-        setSending(false);
-        return;
+      if (Platform.OS !== 'web') {
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (!isAvailable) {
+          showToast("warning", "La opción de compartir/descargar no está disponible en este dispositivo.");
+          setSending(false);
+          return;
+        }
       }
-      const ok = await MailComposer.isAvailableAsync();
-      if (!ok) { showToast("warning", "No hay app de correo en este dispositivo."); setSending(false); return; }
-      await MailComposer.composeAsync({
-        recipients: [], // TODO: inyectar correo del pediatra asignado
-        subject: `Reporte Pediátrico TinyCare — ${new Date().toLocaleDateString("es-MX")}`,
-        body,
-      });
-    } catch { showToast("error", "No se pudo abrir el correo."); }
+
+      const today = new Date().toLocaleDateString("es-MX", { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      
+      let tableRows = metrics.map(m => {
+        const data = period === "24H" ? m.data24H : m.data7D;
+        const avg = data.length > 0 ? (data.reduce((a, b) => a + b, 0) / data.length).toFixed(1) : "--";
+        const statusColor = m.status === 'Normal' ? '#059669' : (m.status === 'Sin Datos' ? '#94A3B8' : '#DC2626');
+        return `
+          <tr>
+            <td><strong>${m.fullName}</strong><br><small style="color: #64748B;">${m.subtitle}</small></td>
+            <td style="font-size: 18px; font-weight: bold; color: ${m.color};">${m.value} <span style="font-size: 12px; color: #64748B;">${m.unit}</span></td>
+            <td>${avg} ${m.unit}</td>
+            <td><span style="background-color: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">${m.status}</span></td>
+          </tr>
+        `;
+      }).join("");
+
+      const html = `
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+            <style>
+              body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; margin: 0; padding: 40px; }
+              .header { border-bottom: 2px solid #14B8A6; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+              .title { margin: 0; color: #0F172A; font-size: 28px; }
+              .subtitle { margin: 4px 0 0 0; color: #64748B; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+              .patient-card { background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 30px; }
+              .patient-card p { margin: 5px 0; font-size: 15px; }
+              table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+              th { text-align: left; background-color: #F1F5F9; padding: 12px; color: #475569; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #CBD5E1; }
+              td { padding: 16px 12px; border-bottom: 1px solid #E2E8F0; vertical-align: middle; }
+              .notes { background-color: #FEF3C7; border: 1px solid #FDE68A; border-radius: 12px; padding: 20px; color: #92400E; margin-bottom: 30px; }
+              .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 50px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div>
+                <h1 class="title">Expediente Telemétrico</h1>
+                <p class="subtitle">TinyCare Smart Monitor</p>
+              </div>
+              <div style="text-align: right;">
+                <p style="margin: 0; font-size: 14px; font-weight: bold;">Generado el:</p>
+                <p style="margin: 4px 0 0 0; font-size: 14px; color: #64748B;">${today}</p>
+              </div>
+            </div>
+
+            <div class="patient-card">
+              <p><strong>Paciente:</strong> ${patientName}</p>
+              <p><strong>Periodo de Análisis:</strong> ${period === "24H" ? "Últimas 24 Horas" : "Últimos 7 Días"}</p>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Biomarcador</th>
+                  <th>Lectura Actual</th>
+                  <th>Promedio Periodo</th>
+                  <th>Estado Clínico</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
+
+            ${message.trim() ? `
+              <div class="notes">
+                <h3 style="margin-top: 0; font-size: 14px; text-transform: uppercase;">Nota del Tutor / Observaciones:</h3>
+                <p style="margin: 0; font-size: 15px; line-height: 1.5;">${message.trim()}</p>
+              </div>
+            ` : ""}
+
+            <p style="font-size: 13px; color: #64748B; line-height: 1.6;">
+              <strong>Nota Clínica:</strong> Este reporte es generado automáticamente a partir de los datos recopilados por los sensores wearables de TinyCare. 
+              No sustituye el juicio médico profesional ni constituye un diagnóstico. Recomendamos correlacionar estos hallazgos con la evaluación física del paciente.
+            </p>
+
+            <div class="footer">
+              Generado de forma segura en modo local a través de TinyCare App.
+            </div>
+          </body>
+        </html>
+      `;
+
+      if (Platform.OS === 'web') {
+        const loadScript = (src: string) => new Promise((resolve, reject) => {
+          if (document.querySelector(`script[src="${src}"]`)) return resolve(true);
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+
+        try {
+          await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+          await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js");
+          
+          const jsPDF = (window as any).jspdf.jsPDF;
+          const doc = new jsPDF();
+          
+          doc.setFontSize(22);
+          doc.setTextColor(15, 23, 42);
+          doc.text("Expediente Telemetrico", 14, 20);
+          
+          doc.setFontSize(12);
+          doc.setTextColor(100, 116, 139);
+          doc.text("TinyCare Smart Monitor", 14, 28);
+          
+          doc.setFontSize(10);
+          doc.text(`Generado el: ${today}`, 14, 34);
+          
+          doc.setFontSize(12);
+          doc.setTextColor(51, 65, 85);
+          doc.text(`Paciente: ${patientName}`, 14, 45);
+          doc.text(`Periodo de Analisis: ${period === "24H" ? "Ultimas 24 Horas" : "Ultimos 7 Dias"}`, 14, 52);
+          
+          const tableBody = metrics.map(m => {
+            const data = period === "24H" ? m.data24H : m.data7D;
+            const avg = data.length > 0 ? (data.reduce((a, b) => a + b, 0) / data.length).toFixed(1) : "--";
+            return [
+              m.fullName,
+              `${m.value} ${m.unit}`,
+              `${avg} ${m.unit}`,
+              m.status
+            ];
+          });
+
+          doc.autoTable({
+            startY: 60,
+            head: [['Biomarcador', 'Lectura Actual', 'Promedio Periodo', 'Estado Clinico']],
+            body: tableBody,
+            theme: 'striped',
+            headStyles: { fillColor: [20, 184, 166] },
+            styles: { font: 'helvetica', fontSize: 10 },
+          });
+
+          if (message.trim()) {
+            const finalY = doc.lastAutoTable.finalY || 60;
+            doc.setFontSize(12);
+            doc.setTextColor(15, 23, 42);
+            doc.text("Nota del Tutor / Observaciones:", 14, finalY + 15);
+            doc.setFontSize(10);
+            doc.setTextColor(51, 65, 85);
+            const splitTitle = doc.splitTextToSize(message.trim(), 180);
+            doc.text(splitTitle, 14, finalY + 22);
+          }
+
+          doc.save(`Reporte_${patientName.replace(/\s+/g, '_')}_${period}.pdf`);
+        } catch (error) {
+          console.error("Error cargando jsPDF:", error);
+          showToast("error", "Error generando el PDF en Web.");
+        }
+      } else {
+        const { uri } = await Print.printToFileAsync({ html });
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Descargar Reporte Médico (PDF)',
+          UTI: 'com.adobe.pdf'
+        });
+      }
+      
+    } catch (e) {
+      console.error(e);
+      showToast("error", "No se pudo generar el documento PDF."); 
+    }
     setSending(false);
   };
 
@@ -334,10 +484,10 @@ const SendToPediatrician = ({ metrics, period, showToast }: { metrics: typeof ME
       <View style={s.pedContent}>
         <View style={s.pedHeader}>
           <View style={s.pedIconBox}>
-            <Ionicons name="mail" size={20} color="#FFF" />
+            <Ionicons name="download-outline" size={20} color="#FFF" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.pedTitle}>Enviar al Pediatra</Text>
+            <Text style={s.pedTitle}>Descargar Reporte</Text>
             <Text style={s.pedSubtitle}>Resumen clínico + nota breve</Text>
           </View>
         </View>
@@ -373,14 +523,14 @@ const SendToPediatrician = ({ metrics, period, showToast }: { metrics: typeof ME
             activeOpacity={0.8}
             disabled={sending}
           >
-            <Ionicons name={sending ? "hourglass" : "send"} size={18} color="#FFF" />
-            <Text style={s.pedSendText}>{sending ? "Abriendo…" : "Enviar Reporte"}</Text>
+            <Ionicons name={sending ? "hourglass" : "download"} size={18} color="#FFF" />
+            <Text style={s.pedSendText}>{sending ? "Generando…" : "Descargar Documento"}</Text>
           </TouchableOpacity>
         </Animated.View>
 
         <View style={s.pedDisclaimer}>
-          <Ionicons name="lock-closed" size={12} color="#94A3B8" />
-          <Text style={s.pedDisclaimerText}>Se abrirá tu app de correo</Text>
+          <Ionicons name="document-text" size={12} color="#94A3B8" />
+          <Text style={s.pedDisclaimerText}>Se generará un reporte clínico en PDF</Text>
         </View>
       </View>
     </View>
@@ -579,7 +729,7 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        <SendToPediatrician metrics={liveMetrics} period={period} showToast={showToast} />
+        <SendToPediatrician metrics={liveMetrics} period={period} patientName={activeBaby?.name} showToast={showToast} />
 
       </ScrollView>
 

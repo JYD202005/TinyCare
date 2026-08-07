@@ -32,6 +32,8 @@ interface Bebe {
   esPrematuro: boolean;
   semanasGestacion: string;
   riesgoSDR: boolean;
+  tieneComplicaciones: boolean;
+  detallesComplicaciones: string;
   mostrarAvanzado?: boolean;
 }
 
@@ -52,14 +54,14 @@ export default function Onboarding() {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
   const [bebes, setBebes] = useState<Bebe[]>([{ 
-    id: 1, nombre: '', avatar: '❤️', fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, mostrarAvanzado: false 
+    id: 1, nombre: '', avatar: '❤️', fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, tieneComplicaciones: false, detallesComplicaciones: '', mostrarAvanzado: false 
   }]);
   const [showEmojiPickerId, setShowEmojiPickerId] = useState<number | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const agregarBebe = () => {
     const nextEmoji = DEFAULT_EMOJIS[bebes.length % DEFAULT_EMOJIS.length];
-    setBebes([...bebes, { id: Date.now(), nombre: '', avatar: nextEmoji, fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, mostrarAvanzado: false }]);
+    setBebes([...bebes, { id: Date.now(), nombre: '', avatar: nextEmoji, fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, tieneComplicaciones: false, detallesComplicaciones: '', mostrarAvanzado: false }]);
   };
 
   const quitarBebe = (id: number) => {
@@ -75,14 +77,25 @@ export default function Onboarding() {
   const guardarDatos = async () => {
     for (let i = 0; i < bebes.length; i++) {
       const bebe = bebes[i];
-      if (bebe.fechaNacimiento) {
-        const parts = bebe.fechaNacimiento.split('/');
-        if (parts.length === 3) {
-          const dateObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-          if (dateObj > new Date()) {
-            showToast("warning", `La fecha de nacimiento para el bebé ${bebe.nombre || (i+1)} no puede ser en el futuro.`);
-            return;
-          }
+      if (!bebe.nombre.trim()) {
+        showToast("warning", `Ingresa el nombre del bebé ${i+1}.`);
+        return;
+      }
+      if (!bebe.fechaNacimiento.trim()) {
+        showToast("warning", `Ingresa la fecha de nacimiento para ${bebe.nombre}.`);
+        return;
+      }
+      if (!bebe.peso.trim()) {
+        showToast("warning", `Ingresa el peso para ${bebe.nombre}.`);
+        return;
+      }
+
+      const parts = bebe.fechaNacimiento.split('/');
+      if (parts.length === 3) {
+        const dateObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        if (dateObj > new Date()) {
+          showToast("warning", `La fecha de nacimiento para ${bebe.nombre} no puede ser en el futuro.`);
+          return;
         }
       }
     }
@@ -132,6 +145,8 @@ export default function Onboarding() {
             s.grupoEdad = grupoEdad;
             s.diasDeVida = diasDeVida >= 0 ? diasDeVida : 0;
             s.edadGestacionalSemanas = bebe.esPrematuro ? (parseInt(bebe.semanasGestacion) || null) : null;
+            s.tieneComplicaciones = bebe.tieneComplicaciones;
+            s.detallesComplicaciones = bebe.detallesComplicaciones.trim();
           });
 
           await database.get('alertas_medicas').create((a: any) => {
@@ -343,6 +358,25 @@ export default function Onboarding() {
                           thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
                         />
                       </View>
+
+                      <View style={styles.switchCardRow}>
+                        <Text style={styles.switchLabel}>¿Otros padecimientos?</Text>
+                        <Switch 
+                          value={bebe.tieneComplicaciones} 
+                          onValueChange={(v) => actualizarBebe(bebe.id, 'tieneComplicaciones', v)} 
+                          trackColor={{ true: TC.accent, false: '#CBD5E1' }}
+                          thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
+                        />
+                      </View>
+
+                      {bebe.tieneComplicaciones && (
+                        <PillInput
+                          icon="medkit-outline"
+                          placeholder="Describe el padecimiento..."
+                          value={bebe.detallesComplicaciones}
+                          onChangeText={(t) => actualizarBebe(bebe.id, 'detallesComplicaciones', t)}
+                        />
+                      )}
                     </View>
                   )}
                 </View>

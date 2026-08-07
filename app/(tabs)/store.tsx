@@ -1,12 +1,23 @@
 import React, { useState, useRef } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Animated, Dimensions, Modal, Alert,
+  Animated, Dimensions, Modal, Alert, Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as MailComposer from "expo-mail-composer";
 import { TC } from "../../components/theme";
 import { useToast } from "../../components/Toast";
+import { useAuth } from "@/src/providers/AuthProvider";
+
+// ─── Product Images Map ───────────────────────────────────────────────────────
+const PRODUCT_IMAGES: Record<string, any> = {
+  "1": require("../../assets/products/oxipulse.png"),
+  "2": require("../../assets/products/termoscan.png"),
+  "3": require("../../assets/products/postural.png"),
+  "4": require("../../assets/products/respira.png"),
+  "5": require("../../assets/products/kit.png"),
+};
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -175,11 +186,18 @@ const PRODUCTS: Product[] = [
 
 // ─── UI Components ───────────────────────────────────────────────────────────
 
-const ImagePlaceholder: React.FC<{ style?: any, icon?: keyof typeof Ionicons.glyphMap, color?: string }> = ({ style, icon = "hardware-chip-outline", color = TC.textMuted }) => (
-  <View style={[{ backgroundColor: TC.inputBorder, alignItems: 'center', justifyContent: 'center' }, style]}>
-    <Ionicons name={icon} size={style.width ? style.width * 0.4 : 24} color={color} style={{ opacity: 0.5 }} />
-  </View>
-);
+const ProductImage: React.FC<{ productId: string; style?: any; color?: string }> = ({ productId, style, color = TC.textMuted }) => {
+  const img = PRODUCT_IMAGES[productId];
+  if (img) {
+    return <Image source={img} style={[{ resizeMode: 'cover' }, style]} />;
+  }
+  // Fallback for accessories/spare parts without a dedicated image
+  return (
+    <View style={[{ backgroundColor: TC.trackBg, alignItems: 'center', justifyContent: 'center' }, style]}>
+      <Ionicons name="hardware-chip-outline" size={style?.width ? style.width * 0.4 : 24} color={color} style={{ opacity: 0.6 }} />
+    </View>
+  );
+};
 
 const Stars: React.FC<{ rating: number; size?: number }> = ({ rating, size = 14 }) => (
   <View style={{ flexDirection: "row", gap: 2 }}>
@@ -214,7 +232,7 @@ const ProductModal: React.FC<{ product: Product | null; visible: boolean; onClos
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
             {/* Header */}
             <View style={modal.header}>
-              <ImagePlaceholder style={modal.imageBox} color={product.colors[0]} />
+              <ProductImage productId={product.id} style={modal.imageBox} color={product.colors[0]} />
               <View style={{ flex: 1 }}>
                 <Text style={modal.name}>{product.name}</Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
@@ -335,7 +353,7 @@ const CartModal: React.FC<{
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
                 {cart.map((item) => (
                   <View key={item.product.id} style={cartStyles.itemRow}>
-                    <ImagePlaceholder style={cartStyles.itemImage} color={item.product.colors[0]} icon="cube-outline" />
+                    <ProductImage productId={item.product.id} style={cartStyles.itemImage} color={item.product.colors[0]} />
                     <View style={cartStyles.itemInfo}>
                       <Text style={cartStyles.itemName} numberOfLines={1}>{item.product.name}</Text>
                       <Text style={cartStyles.itemPrice}>{item.product.price} MXN</Text>
@@ -378,6 +396,7 @@ const CartModal: React.FC<{
 
 export default function StoreScreen() {
   const { showToast, ToastComponent } = useToast();
+  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -409,6 +428,65 @@ export default function StoreScreen() {
 
   const handleRemoveFromCart = (productId: string) => {
     setCart((prev) => prev.filter((item) => item.product.id !== productId));
+  };
+
+  // ── Checkout via email ──────────────────────────────────────────────────────
+  const STORE_EMAIL = "anti72970@gmail.com";
+
+  const handleCheckout = async () => {
+    if (!user) {
+      showToast("warning", "Necesitas iniciar sesión para realizar pedidos.");
+      setIsCartVisible(false);
+      return;
+    }
+
+    const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ''), 10);
+    const total = cart.reduce((sum, item) => sum + parsePrice(item.product.price) * item.quantity, 0);
+    const fecha = new Date().toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" });
+
+    const itemsText = cart.map((item) =>
+      `  • ${item.product.name} (x${item.quantity}) — ${item.product.price} MXN c/u`
+    ).join("\n");
+
+    const body = `
+══════════════════════════════
+  NUEVO PEDIDO — TINYCARE STORE
+══════════════════════════════
+Fecha: ${fecha}
+
+PRODUCTOS:
+${itemsText}
+
+──────────────────────────────
+TOTAL: $${total.toLocaleString("es-MX")} MXN
+══════════════════════════════
+Enviado desde la app TinyCare.
+Por favor confirmen disponibilidad y método de pago.
+`.trim();
+
+    try {
+      const isAvailable = await MailComposer.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert(
+          "Sin cliente de correo",
+          "No se encontró una aplicación de correo configurada. Instala una cuenta de correo e intenta de nuevo."
+        );
+        return;
+      }
+
+      await MailComposer.composeAsync({
+        recipients: [STORE_EMAIL],
+        subject: `Pedido TinyCare — ${fecha}`,
+        body,
+        isHtml: false,
+      });
+
+      setIsCartVisible(false);
+      setCart([]);
+    } catch (e) {
+      console.error("[Checkout]", e);
+      showToast("error", "No se pudo abrir el cliente de correo.");
+    }
   };
 
   const headerOpacity = scrollY.interpolate({ inputRange: [0, 80], outputRange: [1, 0.9], extrapolate: "clamp" });
@@ -465,7 +543,7 @@ export default function StoreScreen() {
         <View style={s.grid}>
           {filtered.map((p) => (
             <TouchableOpacity key={p.id} style={s.card} activeOpacity={0.8} onPress={() => setSelectedProduct(p)}>
-              <ImagePlaceholder style={s.cardImage} color={p.colors[0]} icon="shirt-outline" />
+              <ProductImage productId={p.id} style={s.cardImage} color={p.colors[0]} />
               <View style={s.cardBody}>
                 <View style={s.cardMetaTop}>
                   <Text style={s.cardCategory}>{p.category.toUpperCase()}</Text>
@@ -514,11 +592,7 @@ export default function StoreScreen() {
         cart={cart}
         onUpdateQuantity={handleUpdateQuantity}
         onRemove={handleRemoveFromCart}
-        onCheckout={() => {
-          showToast('success', 'Redirigiendo a pasarela de pago...');
-          setIsCartVisible(false);
-          setCart([]);
-        }}
+        onCheckout={handleCheckout}
       />
     </View>
   );

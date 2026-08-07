@@ -266,22 +266,33 @@ export default function ProfileScreen() {
             contentContainerStyle={styles.babiesScroll}
           >
             {babies.map((b) => (
-              <TouchableOpacity
-                key={b.id}
-                style={styles.babyCard}
-                activeOpacity={0.8}
-                onPress={() =>
-                  router.push({ pathname: "/edit-baby", params: { id: b.id } })
-                }
-              >
-                <View style={styles.babyEmojiBox}>
-                  <Text style={styles.babyEmoji}>{b.emoji}</Text>
-                </View>
-                <Text style={styles.babyName} numberOfLines={1}>
-                  {b.name}
-                </Text>
-                <Text style={styles.babyEdit}>Editar Perfil</Text>
-              </TouchableOpacity>
+              <View key={b.id} style={styles.babyCard}>
+                <TouchableOpacity
+                  style={{ alignItems: "center" }}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    router.push({ pathname: "/edit-baby", params: { id: b.id } })
+                  }
+                >
+                  <View style={styles.babyEmojiBox}>
+                    <Text style={styles.babyEmoji}>{b.emoji}</Text>
+                  </View>
+                  <Text style={styles.babyName} numberOfLines={1}>
+                    {b.name}
+                  </Text>
+                  <Text style={styles.babyEdit}>Editar Perfil</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.babyReportBtn}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    router.push({ pathname: "/doctor-report", params: { id: b.id } })
+                  }
+                >
+                  <Ionicons name="document-text-outline" size={14} color={TC.accent} />
+                  <Text style={styles.babyReportBtnText}>Reporte</Text>
+                </TouchableOpacity>
+              </View>
             ))}
 
             <TouchableOpacity
@@ -483,12 +494,14 @@ const styles = StyleSheet.create({
   cloudSub: { fontSize: 13, color: TC.textBody, fontWeight: "500" },
   cloudTextContainer: { flex: 1 },
   cloudBtn: {
-    backgroundColor: TC.textDark,
+    backgroundColor: TC.card,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: TC.accent + '30',
   },
-  cloudBtnText: { color: "#FFF", fontWeight: "700", fontSize: 14 },
+  cloudBtnText: { color: TC.accent, fontWeight: "700", fontSize: 14 },
 
   /* Sections */
   section: { marginBottom: 28 },
@@ -558,6 +571,23 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   babyAddText: { fontSize: 15, fontWeight: "700", color: TC.textMuted },
+  babyReportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 10,
+    backgroundColor: TC.accentLight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: TC.accent + "30",
+  },
+  babyReportBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: TC.accent,
+  },
 
   /* Settings */
   cardGroup: {

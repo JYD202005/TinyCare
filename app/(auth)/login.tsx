@@ -10,12 +10,16 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 
 import WaveHeader from '../../components/WaveHeader';
 import PillInput from '../../components/PillInput';
 import GradientButton from '../../components/GradientButton';
 import { TC } from '../../components/theme';
 import { useToast } from '../../components/Toast';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -31,6 +35,19 @@ export default function LoginScreen() {
     // Navegar directamente al home sin validación por ahora
     setTimeout(() => router.replace('/(tabs)/home'), 600);
   };
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: 'YOUR_GOOGLE_CLIENT_ID_PLACEHOLDER',
+  });
+
+  React.useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      console.log('Google Auth Success:', authentication);
+      showToast('success', 'Sesión iniciada con Google');
+      setTimeout(() => router.replace('/(tabs)/home'), 600);
+    }
+  }, [response]);
 
   return (
     <View style={styles.root}>
@@ -127,6 +144,21 @@ export default function LoginScreen() {
                 <Text style={styles.switchLink}>Crear Cuenta</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Google Sign In */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>O ingresa con</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            <TouchableOpacity 
+              style={styles.googleBtn} 
+              onPress={() => promptAsync()} 
+              disabled={!request}
+            >
+              <Ionicons name="logo-google" size={20} color="#DB4437" />
+              <Text style={styles.googleBtnText}>Continuar con Google</Text>
+            </TouchableOpacity>
           </View>
 
           {/* ── Footer ── */}
@@ -251,6 +283,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: TC.accent,
+  },
+
+  /* ── Social Login ── */
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 32,
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: TC.inputBorder,
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 13,
+    color: TC.textMuted,
+    fontWeight: '600',
+  },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 14,
+    borderRadius: 24,
+    gap: 12,
+  },
+  googleBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: TC.textDark,
   },
 
   /* ── Footer ── */

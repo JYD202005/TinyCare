@@ -369,9 +369,9 @@ export default function HomeScreen() {
             </View>
             <TouchableOpacity
               onPress={() => router.push('/login')}
-              style={{ backgroundColor: TC.textDark, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }}
+              style={{ backgroundColor: TC.card, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1, borderColor: TC.accent + '30' }}
             >
-              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>Iniciar Sesión</Text>
+              <Text style={{ color: TC.accent, fontWeight: '700', fontSize: 13 }}>Iniciar Sesión</Text>
             </TouchableOpacity>
           </View>
         ) : (
