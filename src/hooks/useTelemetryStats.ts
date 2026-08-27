@@ -45,7 +45,7 @@ export const useTelemetryStats = (perfilId: string | null, name?: string | null)
         posture: [100, 100, 100, 100, 100, 100, 100]
       });
       setAverages24H({ spo2: 97, temp: 36.6, hr: 128, posture: 100 });
-      setAlertsToday(0); // Para Sazed "Sano" en demo no debería haber alertas hoy
+      setAlertsToday(1); // Simular 1 alerta de postura para la demo
       return;
     }
 

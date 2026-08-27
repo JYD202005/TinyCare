@@ -1,37 +1,34 @@
-import React, { useState, useRef } from "react";
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Animated, Dimensions, Modal, Alert, Image,
-} from "react-native";
+import { useAuth } from "@/src/providers/AuthProvider";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import * as MailComposer from "expo-mail-composer";
+import React, { useRef, useState } from "react";
+import {
+  Alert,
+  Animated, Dimensions, Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { TC } from "../../components/theme";
 import { useToast } from "../../components/Toast";
-import { useAuth } from "@/src/providers/AuthProvider";
 
 // ─── Product Images Map ───────────────────────────────────────────────────────
-const PRODUCT_IMAGES: Record<string, any> = {
-  "1": require("../../assets/products/oxipulse.png"),
-  "2": require("../../assets/products/termoscan.png"),
-  "3": require("../../assets/products/postural.png"),
-  "4": require("../../assets/products/respira.png"),
-  "5": require("../../assets/products/kit.png"),
-};
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
 export type Product = {
-  id: string; 
-  name: string; 
-  desc: string; 
+  id: string;
+  name: string;
+  desc: string;
   price: string;
-  rating: number; 
-  reviews: number; 
-  category: string; 
-  tags: string[]; 
+  rating: number;
+  reviews: number;
+  category: string;
+  tags: string[];
   colors: string[];
   specs: { label: string; value: string }[];
   features: string[];
@@ -42,12 +39,12 @@ const CATEGORIES = ["Todos", "Cachorones PPG", "Cachorones Térmicos", "Cachoron
 
 const PRODUCTS: Product[] = [
   {
-    id: "1", 
-    name: "Cachorón OxiPulse", 
+    id: "1",
+    name: "Cachorón OxiPulse",
     desc: "Cachorón inteligente con sensor PPG de alta sensibilidad (MAX30102) para monitoreo continuo de oximetría y pulso.",
-    price: "$1,499", rating: 4.9, reviews: 142, 
-    category: "Cachorones PPG", 
-    tags: ["SpO₂", "FC", "Grado Médico"], 
+    price: "$1,499", rating: 4.9, reviews: 142,
+    category: "Cachorones PPG",
+    tags: ["SpO₂", "FC", "Grado Médico"],
     colors: [TC.vitalHeart, TC.vitalOxygen],
     specs: [
       { label: "Sensor", value: "MAX30102 (PPG)" },
@@ -62,12 +59,12 @@ const PRODUCTS: Product[] = [
     ],
   },
   {
-    id: "2", 
-    name: "Cachorón TermoScan", 
+    id: "2",
+    name: "Cachorón TermoScan",
     desc: "Cachorón con sensor infrarrojo sin contacto (MLX90614) integrado para la detección temprana de anomalías térmicas.",
-    price: "$1,299", rating: 4.8, reviews: 98, 
-    category: "Cachorones Térmicos", 
-    tags: ["Temp IR", "Fiebre", "Clínico"], 
+    price: "$1,299", rating: 4.8, reviews: 98,
+    category: "Cachorones Térmicos",
+    tags: ["Temp IR", "Fiebre", "Clínico"],
     colors: [TC.vitalTemp, "#FFB74D"],
     specs: [
       { label: "Sensor", value: "MLX90614 (IR)" },
@@ -81,12 +78,12 @@ const PRODUCTS: Product[] = [
     ],
   },
   {
-    id: "3", 
-    name: "Cachorón Postural", 
+    id: "3",
+    name: "Cachorón Postural",
     desc: "Monitoreo de higiene postural y prevención de asfixia posicional mediante IMU de 6 ejes.",
-    price: "$1,599", rating: 4.7, reviews: 76, 
-    category: "Cachorones IMU", 
-    tags: ["Postura", "IMU 6-Ejes", "Seguridad"], 
+    price: "$1,599", rating: 4.7, reviews: 76,
+    category: "Cachorones IMU",
+    tags: ["Postura", "IMU 6-Ejes", "Seguridad"],
     colors: [TC.vitalActivity, "#7E57C2"],
     specs: [
       { label: "Sensor", value: "MPU6050 (Acel+Giro)" },
@@ -100,12 +97,12 @@ const PRODUCTS: Product[] = [
     ],
   },
   {
-    id: "4", 
-    name: "Cachorón Respira", 
+    id: "4",
+    name: "Cachorón Respira",
     desc: "Mide la frecuencia respiratoria de forma precisa mediante una banda piezoeléctrica torácica integrada en el tejido.",
-    price: "$1,699", rating: 4.9, reviews: 54, 
-    category: "Cachorones PPG", 
-    tags: ["Respiración", "Piezo", "Avanzado"], 
+    price: "$1,699", rating: 4.9, reviews: 54,
+    category: "Cachorones PPG",
+    tags: ["Respiración", "Piezo", "Avanzado"],
     colors: ["#64B5F6", "#1976D2"],
     specs: [
       { label: "Sensor", value: "Banda Piezoeléctrica" },
@@ -119,12 +116,12 @@ const PRODUCTS: Product[] = [
     ],
   },
   {
-    id: "5", 
-    name: "Kit Clínico Integral", 
+    id: "5",
+    name: "Kit Clínico Integral",
     desc: "Sistema completo de monitoreo clínico. Incluye sensores PPG, IR, IMU y Banda Piezoeléctrica en un paquete.",
-    price: "$3,999", rating: 5.0, reviews: 214, 
-    category: "Kits Clínicos", 
-    tags: ["Telemetría", "Kit", "Hospitalario"], 
+    price: "$3,999", rating: 5.0, reviews: 214,
+    category: "Kits Clínicos",
+    tags: ["Telemetría", "Kit", "Hospitalario"],
     colors: [TC.textDark, TC.accent],
     specs: [
       { label: "Sensores", value: "Múltiples (PPG, IR, IMU, Piezo)" },
@@ -138,12 +135,12 @@ const PRODUCTS: Product[] = [
     ],
   },
   {
-    id: "6", 
-    name: "Módulo Sensor PPG (Repuesto)", 
+    id: "6",
+    name: "Módulo Sensor PPG (Repuesto)",
     desc: "Módulo MAX30102 de reemplazo. Fácil instalación en Cachorones OxiPulse.",
-    price: "$349", rating: 4.8, reviews: 24, 
-    category: "Refacciones", 
-    tags: ["Sensor", "MAX30102"], 
+    price: "$349", rating: 4.8, reviews: 24,
+    category: "Refacciones",
+    tags: ["Sensor", "MAX30102"],
     colors: [TC.textMuted, "#CBD5E1"],
     specs: [
       { label: "Tipo", value: "Repuesto Original" },
@@ -153,12 +150,12 @@ const PRODUCTS: Product[] = [
     userReviews: []
   },
   {
-    id: "7", 
-    name: "Batería Li-Po 500mAh", 
+    id: "7",
+    name: "Batería Li-Po 500mAh",
     desc: "Batería de polímero de litio de grado médico para autonomía extendida.",
-    price: "$299", rating: 4.9, reviews: 45, 
-    category: "Refacciones", 
-    tags: ["Energía", "Batería"], 
+    price: "$299", rating: 4.9, reviews: 45,
+    category: "Refacciones",
+    tags: ["Energía", "Batería"],
     colors: ["#10B981", "#34D399"],
     specs: [
       { label: "Capacidad", value: "500mAh / 3.7V" },
@@ -168,12 +165,12 @@ const PRODUCTS: Product[] = [
     userReviews: []
   },
   {
-    id: "8", 
-    name: "Base de Carga Magnética", 
+    id: "8",
+    name: "Base de Carga Magnética",
     desc: "Cable y base magnética pogo-pin para carga segura e impermeable.",
-    price: "$199", rating: 4.7, reviews: 89, 
-    category: "Refacciones", 
-    tags: ["Carga", "Accesorios"], 
+    price: "$199", rating: 4.7, reviews: 89,
+    category: "Refacciones",
+    tags: ["Carga", "Accesorios"],
     colors: ["#3B82F6", "#93C5FD"],
     specs: [
       { label: "Conector", value: "Pogo-pin 4 contactos" },
@@ -187,10 +184,7 @@ const PRODUCTS: Product[] = [
 // ─── UI Components ───────────────────────────────────────────────────────────
 
 const ProductImage: React.FC<{ productId: string; style?: any; color?: string }> = ({ productId, style, color = TC.textMuted }) => {
-  const img = PRODUCT_IMAGES[productId];
-  if (img) {
-    return <Image source={img} style={[{ resizeMode: 'cover' }, style]} />;
-  }
+
   // Fallback for accessories/spare parts without a dedicated image
   return (
     <View style={[{ backgroundColor: TC.trackBg, alignItems: 'center', justifyContent: 'center' }, style]}>
@@ -278,7 +272,7 @@ const ProductModal: React.FC<{ product: Product | null; visible: boolean; onClos
                     <Text style={modal.specValue}>{s.value}</Text>
                   </View>
                 ))}
-                
+
                 <Text style={[modal.sectionSubtitle, { marginTop: 16 }]}>CARACTERÍSTICAS</Text>
                 {product.features.map((f, i) => (
                   <View key={i} style={modal.featureRow}>
@@ -332,7 +326,7 @@ const CartModal: React.FC<{
       <View style={modal.overlay}>
         <View style={[modal.sheet, { height: '80%' }]}>
           <View style={modal.handle} />
-          
+
           <View style={[modal.header, { justifyContent: 'space-between', position: 'relative' }]}>
             <Text style={modal.name}>Tu Carrito</Text>
             <TouchableOpacity onPress={onClose} style={modal.closeBtn}>
@@ -373,7 +367,7 @@ const CartModal: React.FC<{
                   </View>
                 ))}
               </ScrollView>
-              
+
               <View style={cartStyles.footer}>
                 <View style={cartStyles.totalRow}>
                   <Text style={cartStyles.totalLabel}>Total a pagar:</Text>
@@ -554,7 +548,7 @@ Por favor confirmen disponibilidad y método de pago.
                 </View>
                 <Text style={s.cardName}>{p.name}</Text>
                 <Text style={s.cardDesc} numberOfLines={2}>{p.desc}</Text>
-                
+
                 <View style={s.cardFooter}>
                   <Text style={s.cardPrice}>{p.price}</Text>
                   <View style={s.cardTags}>
@@ -580,10 +574,10 @@ Por favor confirmen disponibilidad y método de pago.
         </View>
       </Animated.ScrollView>
 
-      <ProductModal 
-        product={selectedProduct} 
-        visible={!!selectedProduct} 
-        onClose={() => setSelectedProduct(null)} 
+      <ProductModal
+        product={selectedProduct}
+        visible={!!selectedProduct}
+        onClose={() => setSelectedProduct(null)}
         onAddToCart={handleAddToCart}
       />
       <CartModal
@@ -619,16 +613,16 @@ const s = StyleSheet.create({
   },
   cartBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '800' },
 
-  banner: { 
+  banner: {
     backgroundColor: '#1E293B', // Dark slate for a premium tech feel
-    borderRadius: 16, 
+    borderRadius: 16,
     padding: 24,
     borderCurve: "continuous" as any,
   },
   bannerContent: { alignItems: "flex-start" },
-  bannerIconBox: { 
-    width: 40, height: 40, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.1)', 
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16 
+  bannerIconBox: {
+    width: 40, height: 40, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16
   },
   bannerTitle: { fontSize: 20, fontWeight: "700", color: "#FFF", letterSpacing: -0.5, marginBottom: 8 },
   bannerDesc: { fontSize: 14, fontWeight: "400", color: "#CBD5E1", lineHeight: 22 },
@@ -705,7 +699,7 @@ const modal = StyleSheet.create({
   tabBtnActive: { backgroundColor: '#FFF', shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   tabText: { fontSize: 13, fontWeight: "600", color: '#64748B' },
   tabTextActive: { color: TC.textDark },
-  
+
   featureList: { gap: 12, marginBottom: 32 },
   sectionSubtitle: { fontSize: 11, fontWeight: "800", color: '#94A3B8', letterSpacing: 1, marginBottom: 4 },
   specRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
@@ -713,7 +707,7 @@ const modal = StyleSheet.create({
   specValue: { fontSize: 14, fontWeight: '600', color: TC.textDark, fontFamily: 'System', fontVariant: ['tabular-nums'] },
   featureRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
   featureText: { fontSize: 14, fontWeight: "500", color: '#475569', flex: 1 },
-  
+
   reviewsList: { marginBottom: 32 },
   reviewCard: { paddingVertical: 16 },
   reviewBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
@@ -721,7 +715,7 @@ const modal = StyleSheet.create({
   reviewUser: { fontSize: 14, fontWeight: "700", color: TC.textDark },
   reviewComment: { fontSize: 14, fontWeight: "400", color: '#475569', lineHeight: 22, marginBottom: 8 },
   reviewDate: { fontSize: 12, fontWeight: "500", color: '#94A3B8' },
-  
+
   cta: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     paddingVertical: 16, borderRadius: 12, marginBottom: 24, backgroundColor: TC.textDark,
@@ -731,7 +725,7 @@ const modal = StyleSheet.create({
 
 const cartStyles = StyleSheet.create({
   itemRow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', 
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
     borderRadius: 16, padding: 12, gap: 12, borderWidth: 1, borderColor: '#F1F5F9'
   },
   itemImage: { width: 64, height: 64, borderRadius: 12 },
@@ -739,7 +733,7 @@ const cartStyles = StyleSheet.create({
   itemName: { fontSize: 14, fontWeight: '700', color: TC.textDark, letterSpacing: -0.3 },
   itemPrice: { fontSize: 14, fontWeight: '700', color: TC.textDark },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
-  qtyBtn: { 
+  qtyBtn: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF',
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0',
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1

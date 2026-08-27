@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   UIManager,
   View,
+  Alert,
 } from "react-native";
 import Svg, { Defs, Line, LinearGradient, Path, Stop } from "react-native-svg";
 import DashboardCard, {
@@ -209,19 +210,21 @@ export default function HomeScreen() {
   const { data24H, averages24H, alertsToday } = useTelemetryStats(activeBaby?.id, activeBaby?.name);
 
   // --- MODO DEMO: Simulación de datos para Sazed (Sincronizado con evaluadorMedico.ts) ---
-  const [demoVitals, setDemoVitals] = useState({ hr: 130, spo2: 97, temp: 36.6, fr: 45, activity: 'Reposo' });
+  const [demoVitals, setDemoVitals] = useState({ hr: 130, spo2: 98, temp: 36.5, fr: 45, activity: '90' });
+  
   useEffect(() => {
     if (activeBaby?.name !== 'Sazed') return;
-    const interval = setInterval(() => {
-      setDemoVitals({
-        hr: 125 + Math.floor(Math.random() * 10), // 125-135 lpm
-        spo2: 96 + Math.floor(Math.random() * 3),  // 96-98%
-        temp: 36.5 + (Math.random() * 0.2),        // 36.5-36.7°C
-        fr: 40 + Math.floor(Math.random() * 8),    // 40-48 rpm
-        activity: 'Reposo'
-      });
-    }, 2500);
-    return () => clearInterval(interval);
+    
+    // Disparar la alerta con un tiempo de respuesta de 1 segundo desde que se carga
+    const timeout = setTimeout(() => {
+      Alert.alert(
+        "¡Alerta de Postura!", 
+        "Rotación de riesgo detectada (90 Grados).", 
+        [{ text: "Entendido" }]
+      );
+    }, 1000);
+    
+    return () => clearTimeout(timeout);
   }, [activeBaby?.name]);
 
   useEffect(() => {
@@ -287,13 +290,13 @@ export default function HomeScreen() {
     },
     {
       key: "activity" as VitalType,
-      label: "Actividad",
-      value: "Detectando...",
-      unit: "",
+      label: "Postura",
+      value: `${currentDeviceData.activity}`,
+      unit: currentDeviceData.activity === 'Normal' ? "" : "°",
       color: TC.vitalActivity,
       colorDim: TC.vitalActivity + "30",
       icon: "fitness" as keyof typeof Ionicons.glyphMap,
-      progress: 0.5,
+      progress: currentDeviceData.activity === '90' ? 1.0 : 0.5,
     },
   ] : undefined;
 

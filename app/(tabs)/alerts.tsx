@@ -59,6 +59,14 @@ function formatTimestamp(ts: number): string {
 // ─── MODO DEMO: SAZED ────────────────────────────────────────────────────────
 const MOCK_ALERTS_FOR_SAZED: any[] = [
   {
+    id: 'demo-postura',
+    tipoAlerta: 'Alerta de Postura',
+    mensajeMedico: 'Rotación de riesgo detectada: 90 Grados. Ajuste la postura inmediatamente para evitar riesgo de asfixia.',
+    nivel: 'Critico',
+    timestampEvento: Date.now(), // Justo ahora
+    leida: false,
+  },
+  {
     id: 'demo-1',
     tipoAlerta: 'Taquicardia Neonatal',
     mensajeMedico: 'FC detectada: 168 LPM. El límite normal es 160. Verifique si el bebé está llorando o tiene fiebre.',
