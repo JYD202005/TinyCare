@@ -10,6 +10,11 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  getScreenTopPadding,
+  SharedStyles,
+  Typography,
+} from "../../components/styles";
 import { TC } from "../../components/theme";
 import { database } from "../../src/database";
 import { AlertaMedica, Dispositivo } from "../../src/database/models";
@@ -59,37 +64,41 @@ function formatTimestamp(ts: number): string {
 // ─── MODO DEMO: SAZED ────────────────────────────────────────────────────────
 const MOCK_ALERTS_FOR_SAZED: any[] = [
   {
-    id: 'demo-postura',
-    tipoAlerta: 'Alerta de Postura',
-    mensajeMedico: 'Rotación de riesgo detectada: 90 Grados. Ajuste la postura inmediatamente para evitar riesgo de asfixia.',
-    nivel: 'Critico',
+    id: "demo-postura",
+    tipoAlerta: "Alerta de Postura",
+    mensajeMedico:
+      "Rotación de riesgo detectada: 90 Grados. Ajuste la postura inmediatamente para evitar riesgo de asfixia.",
+    nivel: "Critico",
     timestampEvento: Date.now(), // Justo ahora
     leida: false,
   },
   {
-    id: 'demo-1',
-    tipoAlerta: 'Taquicardia Neonatal',
-    mensajeMedico: 'FC detectada: 168 LPM. El límite normal es 160. Verifique si el bebé está llorando o tiene fiebre.',
-    nivel: 'Advertencia',
+    id: "demo-1",
+    tipoAlerta: "Taquicardia Neonatal",
+    mensajeMedico:
+      "FC detectada: 168 LPM. El límite normal es 160. Verifique si el bebé está llorando o tiene fiebre.",
+    nivel: "Advertencia",
     timestampEvento: Date.now() - 1000 * 60 * 45, // hace 45 min
     leida: false,
   },
   {
-    id: 'demo-2',
-    tipoAlerta: 'Hipoxemia (SpO2)',
-    mensajeMedico: 'Nivel detectado: 91%. Una saturación menor al 92% se considera patológica en neonatos.',
-    nivel: 'Critico',
+    id: "demo-2",
+    tipoAlerta: "Hipoxemia (SpO2)",
+    mensajeMedico:
+      "Nivel detectado: 91%. Una saturación menor al 92% se considera patológica en neonatos.",
+    nivel: "Critico",
     timestampEvento: Date.now() - 1000 * 60 * 120, // hace 2h
     leida: true,
   },
   {
-    id: 'demo-3',
-    tipoAlerta: 'Hipotermia Leve',
-    mensajeMedico: 'Temperatura: 36.2°C. El rango normal axilar es 36.5-36.8°C. Abrigue al bebé.',
-    nivel: 'Advertencia',
+    id: "demo-3",
+    tipoAlerta: "Hipotermia Leve",
+    mensajeMedico:
+      "Temperatura: 36.2°C. El rango normal axilar es 36.5-36.8°C. Abrigue al bebé.",
+    nivel: "Advertencia",
     timestampEvento: Date.now() - 1000 * 60 * 300, // hace 5h
     leida: true,
-  }
+  },
 ];
 
 // ─── AlertCard ────────────────────────────────────────────────────────────────
@@ -185,11 +194,16 @@ export default function AlertsScreen() {
         .observe()
         .subscribe(async (rows) => {
           let finalAlerts = [...rows];
-          
+
           // Verificar si existe Sazed
-          const perfiles = await database.collections.get('perfiles').query().fetch();
-          const hasSazed = perfiles.some((p: any) => p.nombreIdentificador === 'Sazed');
-          
+          const perfiles = await database.collections
+            .get("perfiles")
+            .query()
+            .fetch();
+          const hasSazed = perfiles.some(
+            (p: any) => p.nombreIdentificador === "Sazed",
+          );
+
           if (hasSazed) {
             finalAlerts = [...finalAlerts, ...MOCK_ALERTS_FOR_SAZED];
           }
@@ -206,9 +220,14 @@ export default function AlertsScreen() {
         .observe()
         .subscribe(async (dispositivos) => {
           const connected = dispositivos.some((d) => d.estado === "activo");
-          const perfiles = await database.collections.get('perfiles').query().fetch();
-          const hasSazed = perfiles.some((p: any) => p.nombreIdentificador === 'Sazed');
-          
+          const perfiles = await database.collections
+            .get("perfiles")
+            .query()
+            .fetch();
+          const hasSazed = perfiles.some(
+            (p: any) => p.nombreIdentificador === "Sazed",
+          );
+
           setEspConnected(connected || hasSazed);
         });
 
@@ -257,43 +276,45 @@ export default function AlertsScreen() {
   const read = alerts.filter((a) => a.leida);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerEyebrow}>TinyCare</Text>
-          <Text style={styles.headerTitle}>Alertas</Text>
-        </View>
-        {unreadCount > 0 && (
-          <TouchableOpacity
-            style={styles.markAllBtn}
-            onPress={markAllRead}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.markAllText}>Marcar todas</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* ── ESP Desconectado banner ────────────────────────────────────────── */}
-      {!espConnected && (
-        <View style={styles.espBanner}>
-          <View style={styles.espIconBox}>
-            <Ionicons name="bluetooth-outline" size={20} color="#6366F1" />
-          </View>
-          <View style={styles.espTextCol}>
-            <Text style={styles.espTitle}>Sensor no conectado</Text>
-            <Text style={styles.espSub}>
-              Sin sensores activos no hay alertas de signos vitales.
-            </Text>
-          </View>
-        </View>
-      )}
-
+    <View style={SharedStyles.screenRoot}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          SharedStyles.screenScrollContent,
+          { paddingTop: getScreenTopPadding(insets.top) },
+        ]}
       >
+        {/* ── Header ──────────────────────────────────────────────────────────── */}
+        <View style={SharedStyles.screenHeader}>
+          <View>
+            <Text style={Typography.eyebrow}>CENTRO DE NOTIFICACIONES</Text>
+            <Text style={Typography.screenTitle}>Alertas</Text>
+          </View>
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              style={styles.markAllBtn}
+              onPress={markAllRead}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.markAllText}>Marcar todas</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* ── ESP Desconectado banner ────────────────────────────────────────── */}
+        {!espConnected && (
+          <View style={styles.espBanner}>
+            <View style={styles.espIconBox}>
+              <Ionicons name="bluetooth-outline" size={18} color="#6366F1" />
+            </View>
+            <View style={styles.espTextCol}>
+              <Text style={styles.espTitle}>Sensor no conectado</Text>
+              <Text style={styles.espSub}>
+                Sin sensores activos no hay alertas de signos vitales.
+              </Text>
+            </View>
+          </View>
+        )}
         {/* ── Estado vacío ─────────────────────────────────────────────────── */}
         {alerts.length === 0 && (
           <View style={styles.emptyState}>
@@ -360,32 +381,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    maxWidth: 520,
+    width: "100%",
+    alignSelf: "center",
   },
   headerEyebrow: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: TC.textMuted,
     textTransform: "uppercase",
-    letterSpacing: 1.2,
-    marginBottom: 4,
+    letterSpacing: 1,
+    marginBottom: 2,
   },
   headerTitle: {
-    fontSize: 34,
+    fontSize: 26,
     fontWeight: "800",
     color: TC.textDark,
-    letterSpacing: -0.8,
+    letterSpacing: -0.5,
   },
   markAllBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     backgroundColor: TC.vitalHeart + "15",
   },
   markAllText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: TC.vitalHeart,
   },
@@ -395,93 +419,99 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#EEF2FF",
-    borderRadius: 18,
-    marginHorizontal: 20,
+    borderRadius: 14,
     marginBottom: 12,
-    padding: 14,
+    padding: 10,
     borderWidth: 1,
     borderColor: "#C7D2FE",
-    gap: 12,
+    gap: 10,
+    width: "100%",
   },
   espIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: "#E0E7FF",
     alignItems: "center",
     justifyContent: "center",
   },
   espTextCol: { flex: 1 },
   espTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
     color: "#3730A3",
     marginBottom: 2,
   },
   espSub: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "500",
     color: "#4338CA",
-    lineHeight: 16,
+    lineHeight: 15,
   },
 
-  scroll: { paddingHorizontal: 20, paddingTop: 4 },
+  scroll: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    maxWidth: 520,
+    width: "100%",
+    alignSelf: "center",
+  },
 
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
+    gap: 6,
+    marginBottom: 8,
   },
   sectionLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     color: TC.textMuted,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    paddingLeft: 4,
+    letterSpacing: 0.8,
+    paddingLeft: 2,
   },
   badge: {
     backgroundColor: TC.vitalTemp,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 5,
+    paddingHorizontal: 4,
   },
-  badgeText: { color: "#FFF", fontSize: 11, fontWeight: "800" },
+  badgeText: { color: "#FFF", fontSize: 10, fontWeight: "800" },
 
   /* Alert card */
   alertCard: {
     backgroundColor: "#FFF",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 10,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 8,
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 14,
+    gap: 10,
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   alertCardRead: { opacity: 0.55 },
   unreadDot: {
     position: "absolute",
-    top: 14,
-    left: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 12,
+    left: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   alertIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -491,62 +521,62 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   levelChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   levelChipText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
-  alertTime: { fontSize: 12, fontWeight: "500", color: TC.textMuted },
+  alertTime: { fontSize: 11, fontWeight: "500", color: TC.textMuted },
   alertTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
     color: TC.textDark,
     letterSpacing: -0.2,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   alertTitleRead: { fontWeight: "600", color: TC.textBody },
   alertBody: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     color: TC.textBody,
-    lineHeight: 18,
+    lineHeight: 16,
   },
 
   /* Empty state */
   emptyState: {
     alignItems: "center",
-    paddingVertical: 60,
-    gap: 12,
+    paddingVertical: 40,
+    gap: 10,
   },
   emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 20,
     backgroundColor: TC.inputBg,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   emptyTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "800",
     color: TC.textDark,
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
   },
   emptySub: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "500",
     color: TC.textMuted,
     textAlign: "center",
-    lineHeight: 22,
-    maxWidth: 280,
+    lineHeight: 18,
+    maxWidth: 260,
   },
 });

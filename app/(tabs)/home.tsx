@@ -3,6 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   LayoutAnimation,
   Platform,
   ScrollView,
@@ -11,13 +12,18 @@ import {
   TouchableOpacity,
   UIManager,
   View,
-  Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, Line, LinearGradient, Path, Stop } from "react-native-svg";
 import DashboardCard, {
   VITALS,
   VitalType,
 } from "../../components/DashboardCard";
+import {
+  getScreenTopPadding,
+  SharedStyles,
+  Typography,
+} from "../../components/styles";
 import { TC } from "../../components/theme";
 import { database } from "../../src/database";
 import { Dispositivo, Perfil } from "../../src/database/models";
@@ -92,9 +98,14 @@ const MiniChart: React.FC<{ data: number[]; color: string }> = ({
       </Defs>
       {/* Decorative center line */}
       <Line
-        x1="0" y1={H / 2} x2={W} y2={H / 2}
-        stroke={color} strokeOpacity="0.15"
-        strokeDasharray="4 4" strokeWidth="2"
+        x1="0"
+        y1={H / 2}
+        x2={W}
+        y2={H / 2}
+        stroke={color}
+        strokeOpacity="0.15"
+        strokeDasharray="4 4"
+        strokeWidth="2"
       />
       <Path d={areaPath} fill={`url(#grad-${color})`} />
       <Path
@@ -111,12 +122,12 @@ const MiniChart: React.FC<{ data: number[]; color: string }> = ({
 
 // ─── Info Card Components ────────────────────────────────────────────────────
 
-const TrendCard: React.FC<{ vital: VitalType; color: string; data: number[]; label?: string }> = ({
-  vital,
-  color,
-  data,
-  label
-}) => (
+const TrendCard: React.FC<{
+  vital: VitalType;
+  color: string;
+  data: number[];
+  label?: string;
+}> = ({ vital, color, data, label }) => (
   <View style={infoStyles.cardFull}>
     <View style={infoStyles.cardHeader}>
       <View style={[infoStyles.iconBadge, { backgroundColor: color + "18" }]}>
@@ -128,11 +139,11 @@ const TrendCard: React.FC<{ vital: VitalType; color: string; data: number[]; lab
   </View>
 );
 
-const HistoryCard: React.FC<{ vital: VitalType; color: string; history: { time: string, value: string }[] }> = ({
-  vital,
-  color,
-  history
-}) => (
+const HistoryCard: React.FC<{
+  vital: VitalType;
+  color: string;
+  history: { time: string; value: string }[];
+}> = ({ vital, color, history }) => (
   <View style={infoStyles.cardFull}>
     <View style={infoStyles.cardHeader}>
       <View style={[infoStyles.iconBadge, { backgroundColor: color + "18" }]}>
@@ -149,9 +160,7 @@ const HistoryCard: React.FC<{ vital: VitalType; color: string; history: { time: 
         ]}
       >
         <Text style={infoStyles.historyTime}>{item.time}</Text>
-        <Text style={[infoStyles.historyValue, { color }]}>
-          {item.value}
-        </Text>
+        <Text style={[infoStyles.historyValue, { color }]}>{item.value}</Text>
       </View>
     ))}
   </View>
@@ -161,8 +170,23 @@ const HistoryCard: React.FC<{ vital: VitalType; color: string; history: { time: 
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [babies, setBabies] = useState<{ id: string, name: string, emoji: string, connected: boolean, deviceId: string | null }[]>([
-    { id: 'loading', name: 'Cargando...', emoji: '⏳', connected: false, deviceId: null }
+  const insets = useSafeAreaInsets();
+  const [babies, setBabies] = useState<
+    {
+      id: string;
+      name: string;
+      emoji: string;
+      connected: boolean;
+      deviceId: string | null;
+    }[]
+  >([
+    {
+      id: "loading",
+      name: "Cargando...",
+      emoji: "⏳",
+      connected: false,
+      deviceId: null,
+    },
   ]);
   const [activeBabyIndex, setActiveBabyIndex] = useState(0);
   const activeBaby = babies[activeBabyIndex] || babies[0];
@@ -176,142 +200,189 @@ export default function HomeScreen() {
   // Esto garantiza que cualquier cambio en edit-baby se refleje al regresar
   useFocusEffect(
     useCallback(() => {
-      const perfilesCollection = database.collections.get<Perfil>('perfiles');
-      const dispositivosCollection = database.collections.get<Dispositivo>('dispositivos');
+      const perfilesCollection = database.collections.get<Perfil>("perfiles");
+      const dispositivosCollection =
+        database.collections.get<Dispositivo>("dispositivos");
 
-      const subscription = perfilesCollection.query().observe().subscribe(async (perfiles) => {
-        if (perfiles.length > 0) {
-          const allDevices = await dispositivosCollection.query().fetch();
+      const subscription = perfilesCollection
+        .query()
+        .observe()
+        .subscribe(async (perfiles) => {
+          if (perfiles.length > 0) {
+            const allDevices = await dispositivosCollection.query().fetch();
 
-          const loadedBabies = perfiles.map((p) => {
-            const hasDevice = allDevices.find(d => d.idPerfil === p.id);
-            return {
-              id: p.id,
-              name: p.nombreIdentificador || 'Bebé',
-              emoji: p.avatar || '👶🏻',
-              connected: hasDevice ? hasDevice.estado === 'activo' : false,
-              deviceId: hasDevice ? hasDevice.identificadorHardware : null,
-            };
-          });
-          setBabies(loadedBabies);
-          setActiveBabyIndex(0);
-        } else {
-          setBabies([{ id: 'empty', name: 'Sin Perfil', emoji: '👶', connected: false, deviceId: null }]);
-        }
-      });
+            const loadedBabies = perfiles.map((p) => {
+              const hasDevice = allDevices.find((d) => d.idPerfil === p.id);
+              return {
+                id: p.id,
+                name: p.nombreIdentificador || "Bebé",
+                emoji: p.avatar || "👶🏻",
+                connected: hasDevice ? hasDevice.estado === "activo" : false,
+                deviceId: hasDevice ? hasDevice.identificadorHardware : null,
+              };
+            });
+            setBabies(loadedBabies);
+            setActiveBabyIndex(0);
+          } else {
+            setBabies([
+              {
+                id: "empty",
+                name: "Sin Perfil",
+                emoji: "👶",
+                connected: false,
+                deviceId: null,
+              },
+            ]);
+          }
+        });
 
       // Cleanup al perder foco o desmontar
       return () => subscription.unsubscribe();
-    }, [])
+    }, []),
   );
 
   const [liveData, setLiveData] = useState<Record<string, any>>({});
 
-  const { data24H, averages24H, alertsToday } = useTelemetryStats(activeBaby?.id, activeBaby?.name);
+  const { data24H, averages24H, alertsToday } = useTelemetryStats(
+    activeBaby?.id,
+    activeBaby?.name,
+  );
 
   // --- MODO DEMO: Simulación de datos para Sazed (Sincronizado con evaluadorMedico.ts) ---
-  const [demoVitals, setDemoVitals] = useState({ hr: 130, spo2: 98, temp: 36.5, fr: 45, activity: '90' });
-  
+  const [demoVitals, setDemoVitals] = useState({
+    hr: 130,
+    spo2: 98,
+    temp: 36.5,
+    fr: 45,
+    activity: "90",
+  });
+
   useEffect(() => {
-    if (activeBaby?.name !== 'Sazed') return;
-    
+    if (activeBaby?.name !== "Sazed") return;
+
     // Disparar la alerta con un tiempo de respuesta de 1 segundo desde que se carga
     const timeout = setTimeout(() => {
       Alert.alert(
-        "¡Alerta de Postura!", 
-        "Rotación de riesgo detectada (90 Grados).", 
-        [{ text: "Entendido" }]
+        "¡Alerta de Postura!",
+        "Rotación de riesgo detectada (90 Grados).",
+        [{ text: "Entendido" }],
       );
     }, 1000);
-    
+
     return () => clearTimeout(timeout);
   }, [activeBaby?.name]);
 
   useEffect(() => {
     const unsub = subscribeToBiometrics((deviceId, data) => {
-      setLiveData(prev => ({ ...prev, [deviceId]: data }));
+      setLiveData((prev) => ({ ...prev, [deviceId]: data }));
     });
     return unsub;
   }, []);
 
   // Si es Sazed, usamos datos simulados si no hay un sensor real conectado
-  const currentDeviceData = activeBaby?.name === 'Sazed'
-    ? { heartRate: demoVitals.hr, oxygenSaturation: demoVitals.spo2, temperature: demoVitals.temp, respiratoryRate: demoVitals.fr, activity: demoVitals.activity }
-    : (activeBaby?.deviceId ? liveData[activeBaby.deviceId] : null);
+  const currentDeviceData =
+    activeBaby?.name === "Sazed"
+      ? {
+          heartRate: demoVitals.hr,
+          oxygenSaturation: demoVitals.spo2,
+          temperature: demoVitals.temp,
+          respiratoryRate: demoVitals.fr,
+          activity: demoVitals.activity,
+        }
+      : activeBaby?.deviceId
+        ? liveData[activeBaby.deviceId]
+        : null;
 
   const getTrendData = (vital: VitalType) => {
     switch (vital) {
-      case 'heart': return data24H.hr;
-      case 'oxygen': return data24H.spo2;
-      case 'temp': return data24H.temp;
-      case 'activity': return data24H.posture;
-      default: return [0];
+      case "heart":
+        return data24H.hr;
+      case "oxygen":
+        return data24H.spo2;
+      case "temp":
+        return data24H.temp;
+      case "activity":
+        return data24H.posture;
+      default:
+        return [0];
     }
   };
 
   const getHistoryData = (vital: VitalType) => {
-    return data24H.history.map(h => ({
+    return data24H.history.map((h) => ({
       time: h.time,
-      value: vital === 'heart' ? h.hr : vital === 'oxygen' ? h.spo2 : vital === 'temp' ? h.temp : h.activity
+      value:
+        vital === "heart"
+          ? h.hr
+          : vital === "oxygen"
+            ? h.spo2
+            : vital === "temp"
+              ? h.temp
+              : h.activity,
     }));
   };
 
   // Adapt Biometrics data to VitalConfig array
-  const activeBabyVitals = currentDeviceData ? [
-    {
-      key: "heart" as VitalType,
-      label: "Ritmo Cardíaco",
-      value: `${currentDeviceData.heartRate}`,
-      unit: "LPM",
-      color: TC.vitalHeart,
-      colorDim: TC.vitalHeart + "30",
-      icon: "heart" as keyof typeof Ionicons.glyphMap,
-      progress: Math.min((currentDeviceData.heartRate - 60) / 80, 1),
-    },
-    {
-      key: "oxygen" as VitalType,
-      label: "Oxigenación",
-      value: `${currentDeviceData.oxygenSaturation}`,
-      unit: "%",
-      color: TC.vitalOxygen,
-      colorDim: TC.vitalOxygen + "30",
-      icon: "water" as keyof typeof Ionicons.glyphMap,
-      progress: currentDeviceData.oxygenSaturation / 100,
-    },
-    {
-      key: "temp" as VitalType,
-      label: "Temperatura",
-      value: `${currentDeviceData.temperature.toFixed(1)}`,
-      unit: "°C",
-      color: TC.vitalTemp,
-      colorDim: TC.vitalTemp + "30",
-      icon: "thermometer" as keyof typeof Ionicons.glyphMap,
-      progress: Math.min((currentDeviceData.temperature - 35) / 3, 1),
-    },
-    {
-      key: "activity" as VitalType,
-      label: "Postura",
-      value: `${currentDeviceData.activity}`,
-      unit: currentDeviceData.activity === 'Normal' ? "" : "°",
-      color: TC.vitalActivity,
-      colorDim: TC.vitalActivity + "30",
-      icon: "fitness" as keyof typeof Ionicons.glyphMap,
-      progress: currentDeviceData.activity === '90' ? 1.0 : 0.5,
-    },
-  ] : undefined;
+  const activeBabyVitals = currentDeviceData
+    ? [
+        {
+          key: "heart" as VitalType,
+          label: "Ritmo Cardíaco",
+          value: `${currentDeviceData.heartRate}`,
+          unit: "LPM",
+          color: TC.vitalHeart,
+          colorDim: TC.vitalHeart + "30",
+          icon: "heart" as keyof typeof Ionicons.glyphMap,
+          progress: Math.min((currentDeviceData.heartRate - 60) / 80, 1),
+        },
+        {
+          key: "oxygen" as VitalType,
+          label: "Oxigenación",
+          value: `${currentDeviceData.oxygenSaturation}`,
+          unit: "%",
+          color: TC.vitalOxygen,
+          colorDim: TC.vitalOxygen + "30",
+          icon: "water" as keyof typeof Ionicons.glyphMap,
+          progress: currentDeviceData.oxygenSaturation / 100,
+        },
+        {
+          key: "temp" as VitalType,
+          label: "Temperatura",
+          value: `${currentDeviceData.temperature.toFixed(1)}`,
+          unit: "°C",
+          color: TC.vitalTemp,
+          colorDim: TC.vitalTemp + "30",
+          icon: "thermometer" as keyof typeof Ionicons.glyphMap,
+          progress: Math.min((currentDeviceData.temperature - 35) / 3, 1),
+        },
+        {
+          key: "activity" as VitalType,
+          label: "Postura",
+          value: `${currentDeviceData.activity}`,
+          unit: currentDeviceData.activity === "Normal" ? "" : "°",
+          color: TC.vitalActivity,
+          colorDim: TC.vitalActivity + "30",
+          icon: "fitness" as keyof typeof Ionicons.glyphMap,
+          progress: currentDeviceData.activity === "90" ? 1.0 : 0.5,
+        },
+      ]
+    : undefined;
 
   return (
-    <View style={styles.root}>
+    <View style={SharedStyles.screenRoot}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          SharedStyles.screenScrollContent,
+          { paddingTop: getScreenTopPadding(insets.top), gap: 10 },
+        ]}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
       >
         {/* ── Header ── */}
-        <View style={styles.header}>
+        <View style={SharedStyles.screenHeader}>
           <View style={styles.headerLeft}>
-            <Text style={styles.babyName}>Hola de nuevo,</Text>
-            <Text style={styles.appTitle}>Panel de Salud</Text>
+            <Text style={Typography.eyebrow}>HOLA DE NUEVO,</Text>
+            <Text style={Typography.screenTitle}>Panel de Salud</Text>
           </View>
         </View>
 
@@ -329,16 +400,31 @@ export default function HomeScreen() {
                   key={index}
                   activeOpacity={0.8}
                   onPress={() => {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    LayoutAnimation.configureNext(
+                      LayoutAnimation.Presets.easeInEaseOut,
+                    );
                     setActiveBabyIndex(index);
                   }}
-                  style={[styles.profilePill, isActive && styles.profilePillActive]}
+                  style={[
+                    styles.profilePill,
+                    isActive && styles.profilePillActive,
+                  ]}
                 >
-                  <View style={[styles.profileEmojiBox, isActive && styles.profileEmojiBoxActive]}>
+                  <View
+                    style={[
+                      styles.profileEmojiBox,
+                      isActive && styles.profileEmojiBoxActive,
+                    ]}
+                  >
                     <Text style={styles.profileEmoji}>{b.emoji}</Text>
                   </View>
                   <View style={styles.profileInfo}>
-                    <Text style={[styles.profileName, isActive && styles.profileNameActive]}>
+                    <Text
+                      style={[
+                        styles.profileName,
+                        isActive && styles.profileNameActive,
+                      ]}
+                    >
                       {b.name}
                     </Text>
                     {isActive && (
@@ -350,7 +436,7 @@ export default function HomeScreen() {
             })}
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => router.push('/(tabs)/profile')}
+              onPress={() => router.push("/(tabs)/profile")}
               style={styles.profileAddBtn}
             >
               <View style={styles.profileAddIcon}>
@@ -362,51 +448,55 @@ export default function HomeScreen() {
 
         {/* ── Cloud Sync Banner ── */}
         {!session ? (
-          <View style={{ backgroundColor: TC.accentLight, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: TC.inputBorder }}>
-            <View style={{ backgroundColor: TC.card, width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
-              <Ionicons name="cloud-offline" size={24} color={TC.textMuted} />
+          <View style={styles.cloudBanner}>
+            <View style={styles.cloudIconBox}>
+              <Ionicons name="cloud-offline" size={18} color={TC.textMuted} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: TC.textDark }}>Modo Local Activo</Text>
-              <Text style={{ fontSize: 13, color: TC.textBody, marginTop: 2 }}>Los datos solo existen en tu dispositivo.</Text>
+              <Text style={styles.bannerTitle}>Modo Local Activo</Text>
+              <Text style={styles.bannerSub} numberOfLines={1}>
+                Datos solo en este dispositivo
+              </Text>
             </View>
             <TouchableOpacity
-              onPress={() => router.push('/login')}
-              style={{ backgroundColor: TC.card, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1, borderColor: TC.accent + '30' }}
+              onPress={() => router.push("/login")}
+              style={styles.bannerActionBtn}
             >
-              <Text style={{ color: TC.accent, fontWeight: '700', fontSize: 13 }}>Iniciar Sesión</Text>
+              <Text style={styles.bannerActionText}>Iniciar Sesión</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={{ backgroundColor: TC.accentLight, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: TC.accent + '30' }}>
-            <View style={{ backgroundColor: TC.card, width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
-              <Ionicons name="cloud-done" size={24} color={TC.accent} />
+          <View style={styles.cloudBanner}>
+            <View style={styles.cloudIconBox}>
+              <Ionicons name="cloud-done" size={18} color={TC.accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: TC.textDark }}>
-                Nube Activa {isSyncing && " (Sincronizando...)"}
+              <Text style={styles.bannerTitle}>
+                Nube Activa {isSyncing && " (Sinc...)"}
               </Text>
-              <Text style={{ fontSize: 13, color: TC.textBody, marginTop: 2 }}>
-                Advertencia: la transmisión remota puede tener retraso.
+              <Text style={styles.bannerSub} numberOfLines={1}>
+                {session.user?.email || "Conectado"}
               </Text>
             </View>
           </View>
         )}
 
         {/* ── Bluetooth Banner ── */}
-        {!activeBaby.connected && activeBaby.name !== 'Sazed' ? (
+        {!activeBaby.connected && activeBaby.name !== "Sazed" ? (
           <View style={styles.bleBannerDisconnected}>
             <View style={styles.bleIconBoxDisconnected}>
-              <Ionicons name="bluetooth" size={20} color="#FFF" />
+              <Ionicons name="bluetooth" size={18} color="#FFF" />
             </View>
             <View style={styles.bleTextCol}>
               <Text style={styles.bleTitle}>Sensor Desconectado</Text>
-              <Text style={styles.bleSub}>Vincular monitor para {activeBaby.name}</Text>
+              <Text style={styles.bleSub} numberOfLines={1}>
+                Vincular monitor para {activeBaby.name}
+              </Text>
             </View>
             <TouchableOpacity
               style={styles.bleBtn}
               activeOpacity={0.8}
-              onPress={() => router.push('/sensor-management')}
+              onPress={() => router.push("/sensor-management")}
             >
               <Text style={styles.bleBtnText}>Vincular</Text>
             </TouchableOpacity>
@@ -414,16 +504,18 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.bleBannerConnected}>
             <View style={styles.bleIconBoxConnected}>
-              <Ionicons name="bluetooth" size={20} color={TC.vitalHeart} />
+              <Ionicons name="bluetooth" size={18} color={TC.vitalHeart} />
             </View>
             <View style={styles.bleTextCol}>
               <Text style={styles.bleTitleConnected}>Monitor Conectado</Text>
-              <Text style={styles.bleSub}>Recibiendo datos de {activeBaby.name}</Text>
+              <Text style={styles.bleSub} numberOfLines={1}>
+                Recibiendo datos de {activeBaby.name}
+              </Text>
             </View>
             <TouchableOpacity
               style={styles.bleBtnOutline}
               activeOpacity={0.8}
-              onPress={() => router.push('/sensor-management')}
+              onPress={() => router.push("/sensor-management")}
             >
               <Text style={styles.bleBtnOutlineText}>Ajustes</Text>
             </TouchableOpacity>
@@ -449,10 +541,19 @@ export default function HomeScreen() {
         </View>
 
         {/* 24h Trend — full width */}
-        <TrendCard vital={activeVital} color={vitalConfig.color} data={getTrendData(activeVital)} label={vitalConfig.label} />
+        <TrendCard
+          vital={activeVital}
+          color={vitalConfig.color}
+          data={getTrendData(activeVital)}
+          label={vitalConfig.label}
+        />
 
         {/* History — full width */}
-        <HistoryCard vital={activeVital} color={vitalConfig.color} history={getHistoryData(activeVital)} />
+        <HistoryCard
+          vital={activeVital}
+          color={vitalConfig.color}
+          history={getHistoryData(activeVital)}
+        />
       </ScrollView>
     </View>
   );
@@ -466,218 +567,268 @@ const styles = StyleSheet.create({
     backgroundColor: TC.bg,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 56, // Ajustado para verse mejor considerando contentInsetAdjustmentBehavior
+    paddingHorizontal: 16,
+    paddingTop: 44,
     paddingBottom: 120,
-    gap: 20,
+    gap: 10,
+    maxWidth: 520,
+    width: "100%",
+    alignSelf: "center",
   },
 
   /* Header */
   header: {
     flexDirection: "row",
     alignItems: "flex-end",
-    marginBottom: 4,
-    paddingHorizontal: 4,
+    marginBottom: 2,
+    paddingHorizontal: 2,
   },
   headerLeft: {
     flex: 1,
   },
   profilesWrapper: {
-    marginHorizontal: -20,
-    marginBottom: 4,
-    marginTop: -8, // Pull closer to header
+    marginHorizontal: -16,
+    marginBottom: 2,
+    marginTop: -4,
   },
   profilesContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    gap: 10,
   },
   profilePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: TC.card,
-    padding: 8,
-    paddingRight: 20,
-    borderRadius: 36,
+    padding: 5,
+    paddingRight: 14,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.03,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
-    height: 64, // fixed height helps keep things stable when animating width
+    height: 50,
   },
   profilePillActive: {
     backgroundColor: TC.vitalHeart,
     borderColor: TC.vitalHeart,
     shadowColor: TC.vitalHeart,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowRadius: 10,
+    elevation: 5,
   },
   profileEmojiBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: TC.trackBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
   },
   profileEmojiBoxActive: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: "rgba(255,255,255,0.2)",
   },
   profileEmoji: {
-    fontSize: 22,
+    fontSize: 18,
   },
   profileInfo: {
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   profileName: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: "800",
     color: TC.textDark,
     letterSpacing: -0.3,
   },
   profileNameActive: {
-    color: '#FFF',
+    color: "#FFF",
   },
   profileStatus: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 2,
+    fontSize: 10,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 1,
   },
   profileAddBtn: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: TC.card,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: TC.inputBorder,
-    borderStyle: 'dashed',
-    marginLeft: 4,
+    borderStyle: "dashed",
+    marginLeft: 2,
   },
   profileAddIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: TC.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   babyName: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "700",
     color: TC.textMuted,
     textTransform: "uppercase",
     letterSpacing: 1.2,
-    marginBottom: 6,
+    marginBottom: 2,
   },
   appTitle: {
-    fontSize: 34,
+    fontSize: 26,
     fontWeight: "800",
     color: TC.textDark,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
   },
 
+  /* Cloud Sync Banner */
+  cloudBanner: {
+    backgroundColor: TC.accentLight,
+    borderRadius: 18,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+    borderCurve: "continuous" as any,
+  },
+  cloudIconBox: {
+    backgroundColor: TC.card,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  bannerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: TC.textDark,
+  },
+  bannerSub: {
+    fontSize: 11,
+    color: TC.textBody,
+    marginTop: 1,
+  },
+  bannerActionBtn: {
+    backgroundColor: TC.card,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: TC.accent + "30",
+  },
+  bannerActionText: {
+    color: TC.accent,
+    fontWeight: "700",
+    fontSize: 12,
+  },
 
   /* Bluetooth Banners */
   bleBannerDisconnected: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: TC.vitalHeart + '08',
-    borderRadius: 24,
-    padding: 16,
-    marginVertical: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: TC.vitalHeart + "08",
+    borderRadius: 18,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginBottom: 4,
     borderWidth: 1,
-    borderColor: TC.vitalHeart + '20',
+    borderColor: TC.vitalHeart + "20",
     borderCurve: "continuous" as any,
   },
   bleIconBoxDisconnected: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
     backgroundColor: TC.vitalHeart,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
     borderCurve: "continuous" as any,
   },
   bleBannerConnected: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: TC.accentLight,
-    borderRadius: 24,
-    padding: 16,
-    marginVertical: 4,
+    borderRadius: 18,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginBottom: 4,
     borderWidth: 1,
-    borderColor: TC.accent + '30',
+    borderColor: TC.accent + "30",
     borderCurve: "continuous" as any,
   },
   bleIconBoxConnected: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: TC.accent + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: TC.accent + "15",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
     borderCurve: "continuous" as any,
   },
   bleTextCol: {
     flex: 1,
   },
   bleTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: "700",
     color: TC.vitalHeart,
-    letterSpacing: -0.3,
-    marginBottom: 2,
+    letterSpacing: -0.2,
+    marginBottom: 1,
   },
   bleTitleConnected: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: "700",
     color: TC.accent,
-    letterSpacing: -0.3,
-    marginBottom: 2,
+    letterSpacing: -0.2,
+    marginBottom: 1,
   },
   bleSub: {
-    fontSize: 13,
+    fontSize: 11,
     color: TC.textBody,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   bleBtn: {
     backgroundColor: TC.vitalHeart,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   bleBtnText: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: 14,
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 12,
   },
   bleBtnOutline: {
     backgroundColor: TC.card,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: TC.accent + '30',
+    borderColor: TC.accent + "30",
   },
   bleBtnOutlineText: {
     color: TC.accent,
-    fontWeight: '700',
-    fontSize: 14,
+    fontWeight: "700",
+    fontSize: 12,
   },
 
   mainCardContainer: {
-    marginVertical: 8,
+    marginVertical: 4,
   },
 
   /* Section */
@@ -692,8 +843,6 @@ const styles = StyleSheet.create({
     color: TC.textDark,
     letterSpacing: -0.4,
   },
-
-
 
   /* Sleep */
   sleepCard: {

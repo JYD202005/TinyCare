@@ -1,24 +1,29 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+    getScreenTopPadding,
+    SharedStyles,
+    Typography,
+} from "../../components/styles";
 import { TC } from "../../components/theme";
 import { useToast } from "../../components/Toast";
 import { database } from "../../src/database";
 import { Cuidador, Dispositivo, Perfil } from "../../src/database/models";
-import { useNotificationSettings } from "../../src/services/notifications/useNotificationSettings";
-import { useAuth } from "../../src/providers/AuthProvider";
 import { useSync } from "../../src/hooks/useSync";
+import { useAuth } from "../../src/providers/AuthProvider";
+import { useNotificationSettings } from "../../src/services/notifications/useNotificationSettings";
 import { supabase } from "../../src/services/supabase/client";
 
 // ─── SettingRow ───────────────────────────────────────────────────────────────
@@ -154,7 +159,7 @@ export default function ProfileScreen() {
               id: p.id,
               name: p.nombreIdentificador || "Bebé",
               emoji: p.avatar || "👶🏻",
-            }))
+            })),
           );
         });
 
@@ -163,17 +168,14 @@ export default function ProfileScreen() {
         .observe()
         .subscribe(setPairedDevices);
 
-      const sub3 = cuidadoresCol
-        .query()
-        .observe()
-        .subscribe(setCuidadores);
+      const sub3 = cuidadoresCol.query().observe().subscribe(setCuidadores);
 
       return () => {
         sub1.unsubscribe();
         sub2.unsubscribe();
         sub3.unsubscribe();
       };
-    }, [])
+    }, []),
   );
 
   const handleLogout = () => {
@@ -194,7 +196,7 @@ export default function ProfileScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -210,15 +212,21 @@ export default function ProfileScreen() {
       : null; // null = no mostrar si no hay datos
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={SharedStyles.screenRoot}>
       {ToastComponent}
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          SharedStyles.screenScrollContent,
+          { paddingTop: getScreenTopPadding(insets.top) },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Header ── */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Perfil</Text>
+        <View style={SharedStyles.screenHeader}>
+          <View>
+            <Text style={Typography.eyebrow}>CONFIGURACIÓN Y CUENTA</Text>
+            <Text style={Typography.screenTitle}>Perfil</Text>
+          </View>
         </View>
 
         {/* ── Cloud Card ── */}
@@ -226,7 +234,7 @@ export default function ProfileScreen() {
           <View style={styles.cloudCard}>
             <View style={styles.cloudLeft}>
               <View style={styles.cloudAvatar}>
-                <Ionicons name="cloud-offline" size={28} color={TC.textMuted} />
+                <Ionicons name="cloud-offline" size={22} color={TC.textMuted} />
               </View>
               <View style={styles.cloudTextContainer}>
                 <Text style={styles.cloudTitle}>Modo Local Activo</Text>
@@ -235,15 +243,24 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.cloudBtn} activeOpacity={0.8} onPress={() => router.push('/login')}>
+            <TouchableOpacity
+              style={styles.cloudBtn}
+              activeOpacity={0.8}
+              onPress={() => router.push("/login")}
+            >
               <Text style={styles.cloudBtnText}>Iniciar Sesión</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={[styles.cloudCard, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
+          <View
+            style={[
+              styles.cloudCard,
+              { backgroundColor: "#EEF2FF", borderColor: "#C7D2FE" },
+            ]}
+          >
             <View style={styles.cloudLeft}>
-              <View style={[styles.cloudAvatar, { backgroundColor: '#FFF' }]}>
-                <Ionicons name="cloud-done" size={28} color={TC.vitalHeart} />
+              <View style={[styles.cloudAvatar, { backgroundColor: "#FFF" }]}>
+                <Ionicons name="cloud-done" size={22} color={TC.vitalHeart} />
               </View>
               <View style={styles.cloudTextContainer}>
                 <Text style={styles.cloudTitle}>
@@ -271,7 +288,10 @@ export default function ProfileScreen() {
                   style={{ alignItems: "center" }}
                   activeOpacity={0.8}
                   onPress={() =>
-                    router.push({ pathname: "/edit-baby", params: { id: b.id } })
+                    router.push({
+                      pathname: "/edit-baby",
+                      params: { id: b.id },
+                    })
                   }
                 >
                   <View style={styles.babyEmojiBox}>
@@ -286,10 +306,17 @@ export default function ProfileScreen() {
                   style={styles.babyReportBtn}
                   activeOpacity={0.8}
                   onPress={() =>
-                    router.push({ pathname: "/doctor-report", params: { id: b.id } })
+                    router.push({
+                      pathname: "/doctor-report",
+                      params: { id: b.id },
+                    })
                   }
                 >
-                  <Ionicons name="document-text-outline" size={14} color={TC.accent} />
+                  <Ionicons
+                    name="document-text-outline"
+                    size={14}
+                    color={TC.accent}
+                  />
                   <Text style={styles.babyReportBtnText}>Reporte</Text>
                 </TouchableOpacity>
               </View>
@@ -392,19 +419,19 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ayuda y Soporte</Text>
           <View style={styles.cardGroup}>
-            <SettingRow 
-              icon="document-text" 
+            <SettingRow
+              icon="document-text"
               iconColor="#F87171"
               iconBg="#FEE2E2"
-              label="Manual Clínico IMSS" 
+              label="Manual Clínico IMSS"
               onPress={() => router.push("/manual-imss")}
             />
             <View style={styles.divider} />
-            <SettingRow 
-              icon="shield-checkmark" 
+            <SettingRow
+              icon="shield-checkmark"
               iconColor="#F87171"
               iconBg="#FEE2E2"
-              label="Privacidad y Datos" 
+              label="Privacidad y Datos"
               onPress={() => router.push("/privacy")}
             />
           </View>
@@ -433,7 +460,9 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        <Text style={styles.versionText}>TinyCare v1.0.0 (InnovaTecNM 2026)</Text>
+        <Text style={styles.versionText}>
+          TinyCare v1.0.0 (InnovaTecNM 2026)
+        </Text>
       </ScrollView>
     </View>
   );
@@ -444,17 +473,20 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: TC.bg },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 120,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 110,
+    maxWidth: 520,
+    width: "100%",
+    alignSelf: "center",
   },
 
-  header: { marginBottom: 24 },
+  header: { marginBottom: 14 },
   title: {
-    fontSize: 34,
+    fontSize: 26,
     fontWeight: "800",
     color: TC.textDark,
-    letterSpacing: -0.8,
+    letterSpacing: -0.5,
   },
 
   /* Cloud Card */
@@ -462,129 +494,127 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: TC.accentLight,
-    borderRadius: 24,
-    padding: 16,
+    borderRadius: 20,
+    padding: 12,
     borderWidth: 1,
     borderColor: TC.inputBorder,
-    marginBottom: 32,
+    marginBottom: 20,
     borderCurve: "continuous" as any,
-    gap: 16,
+    gap: 12,
   },
   cloudLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
   cloudAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#FFF",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 10,
     elevation: 2,
     shadowColor: TC.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
   cloudTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: TC.textDark,
     marginBottom: 2,
   },
-  cloudSub: { fontSize: 13, color: TC.textBody, fontWeight: "500" },
+  cloudSub: {
+    fontSize: 11,
+    color: TC.textBody,
+    fontWeight: "500",
+    lineHeight: 15,
+  },
   cloudTextContainer: { flex: 1 },
   cloudBtn: {
     backgroundColor: TC.card,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: TC.accent + '30',
+    borderColor: TC.accent + "30",
   },
-  cloudBtnText: { color: TC.accent, fontWeight: "700", fontSize: 14 },
+  cloudBtnText: { color: TC.accent, fontWeight: "700", fontSize: 12 },
 
   /* Sections */
-  section: { marginBottom: 28 },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: TC.textDark,
-    letterSpacing: -0.4,
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
+  section: { marginBottom: 20 },
+  sectionTitle: Typography.sectionTitle,
 
   /* Babies */
-  babiesScroll: { gap: 16, paddingRight: 20 },
+  babiesScroll: { gap: 12, paddingRight: 16 },
   babyCard: {
-    width: 140,
+    width: 122,
     backgroundColor: TC.card,
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 20,
+    padding: 14,
     alignItems: "center",
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 2,
     borderCurve: "continuous" as any,
   },
   babyEmojiBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: TC.accentLight,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  babyEmoji: { fontSize: 32 },
+  babyEmoji: { fontSize: 24 },
   babyName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: TC.textDark,
-    marginBottom: 4,
+    marginBottom: 2,
     textAlign: "center",
   },
-  babyEdit: { fontSize: 13, fontWeight: "600", color: TC.accent },
+  babyEdit: { fontSize: 12, fontWeight: "600", color: TC.accent },
   babyAddCard: {
-    width: 140,
+    width: 122,
     backgroundColor: "transparent",
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 20,
+    padding: 14,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: TC.inputBorder,
     borderStyle: "dashed",
     borderCurve: "continuous" as any,
   },
   babyAddIconBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  babyAddText: { fontSize: 15, fontWeight: "700", color: TC.textMuted },
+  babyAddText: { fontSize: 13, fontWeight: "700", color: TC.textMuted },
   babyReportBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: 10,
+    marginTop: 8,
     backgroundColor: TC.accentLight,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: TC.accent + "30",
   },
   babyReportBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: TC.accent,
   },
@@ -592,7 +622,7 @@ const styles = StyleSheet.create({
   /* Settings */
   cardGroup: {
     backgroundColor: TC.card,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: TC.inputBorder,
     overflow: "hidden",
@@ -602,51 +632,51 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
+    padding: 13,
     backgroundColor: TC.card,
   },
   settingLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    gap: 12,
+    gap: 10,
   },
   settingIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
     borderCurve: "continuous" as any,
   },
   settingLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     color: TC.textDark,
   },
   settingSublabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "500",
     color: TC.textMuted,
-    lineHeight: 16,
+    lineHeight: 15,
     marginTop: 1,
   },
   settingRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginLeft: 8,
+    marginLeft: 6,
   },
   settingValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: TC.textMuted,
   },
   divider: {
     height: 1,
     backgroundColor: TC.inputBorder,
-    marginLeft: 64,
+    marginLeft: 54,
   },
 
   /* Info box */
@@ -655,18 +685,18 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 8,
     backgroundColor: "#FEF3C7",
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#FDE68A",
   },
   infoBoxText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: "#92400E",
-    lineHeight: 18,
+    lineHeight: 16,
   },
 
   /* Footer */

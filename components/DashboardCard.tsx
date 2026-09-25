@@ -1,14 +1,15 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  Easing,
+    Animated,
+    Easing,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
-import { Ionicons } from "@expo/vector-icons";
 import { TC } from "./theme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -136,30 +137,41 @@ export const VITALS: VitalConfig[] = [
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-// ─── Ring Constants ──────────────────────────────────────────────────────────
+// ─── Responsive Ring Geometry Helper ──────────────────────────────────────────
 
-const SIZE = 220;
-const STROKE = 12;
-const GAP_DEG = 14;
-const RADIUS = (SIZE - STROKE) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-const CENTER = SIZE / 2;
-const SEGMENT_DEG = (360 - 4 * GAP_DEG) / 4;
+export function getRingGeometry(windowWidth: number) {
+  // 360px Android (Samsung, Xiaomi) & 380px iPhone
+  const isCompact = windowWidth <= 385;
+  const isTablet = windowWidth > 500;
+  const size = isCompact ? 180 : isTablet ? 220 : 200;
+  const stroke = isCompact ? 10 : 12;
+  const gapDeg = 14;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const center = size / 2;
+  const segmentDeg = (360 - 4 * gapDeg) / 4;
+  const containerSize = size + (isCompact ? 56 : 68);
+  const containerCenter = containerSize / 2;
+  const iconRadius = radius + (isCompact ? 22 : 26);
+  const iconButtonSize = isCompact ? 36 : 42;
+  const iconSize = isCompact ? 16 : 19;
 
-const CONTAINER_SIZE = SIZE + 72;
-const CONTAINER_CENTER = CONTAINER_SIZE / 2;
-
-// ─── Icon Positions ──────────────────────────────────────────────────────────
-
-const getIconPosition = (index: number) => {
-  const angleDeg = index * (SEGMENT_DEG + GAP_DEG) + SEGMENT_DEG / 2 - 90;
-  const angleRad = (angleDeg * Math.PI) / 180;
-  const iconRadius = RADIUS + 28;
   return {
-    x: CONTAINER_CENTER + iconRadius * Math.cos(angleRad),
-    y: CONTAINER_CENTER + iconRadius * Math.sin(angleRad),
+    isCompact,
+    size,
+    stroke,
+    gapDeg,
+    radius,
+    circumference,
+    center,
+    segmentDeg,
+    containerSize,
+    containerCenter,
+    iconRadius,
+    iconButtonSize,
+    iconSize,
   };
-};
+}
 
 // ─── AnimatedSegment ─────────────────────────────────────────────────────────
 
@@ -167,7 +179,8 @@ const AnimatedSegment: React.FC<{
   vital: VitalConfig;
   index: number;
   isActive: boolean;
-}> = ({ vital, index, isActive }) => {
+  geom: ReturnType<typeof getRingGeometry>;
+}> = ({ vital, index, isActive, geom }) => {
   const animProgress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -179,19 +192,19 @@ const AnimatedSegment: React.FC<{
     }).start();
   }, [vital.progress]);
 
-  const startDeg = index * (SEGMENT_DEG + GAP_DEG);
+  const startDeg = index * (geom.segmentDeg + geom.gapDeg);
   const rotation = -90 + startDeg;
 
   // Track
-  const trackFraction = SEGMENT_DEG / 360;
-  const trackDash = `${trackFraction * CIRCUMFERENCE} ${CIRCUMFERENCE}`;
+  const trackFraction = geom.segmentDeg / 360;
+  const trackDash = `${trackFraction * geom.circumference} ${geom.circumference}`;
 
   // Animated fill dasharray
   const fillDash = animProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [
-      `0 ${CIRCUMFERENCE}`,
-      `${(SEGMENT_DEG / 360) * CIRCUMFERENCE} ${CIRCUMFERENCE}`,
+      `0 ${geom.circumference}`,
+      `${(geom.segmentDeg / 360) * geom.circumference} ${geom.circumference}`,
     ],
   });
 
@@ -199,31 +212,31 @@ const AnimatedSegment: React.FC<{
     <G>
       {/* Track background */}
       <Circle
-        cx={CENTER}
-        cy={CENTER}
-        r={RADIUS}
+        cx={geom.center}
+        cy={geom.center}
+        r={geom.radius}
         fill="none"
         stroke={isActive ? vital.colorDim : TC.trackBg}
-        strokeWidth={STROKE}
+        strokeWidth={geom.stroke}
         strokeLinecap="round"
         strokeDasharray={trackDash}
         strokeDashoffset={0}
         rotation={rotation}
-        origin={`${CENTER}, ${CENTER}`}
+        origin={`${geom.center}, ${geom.center}`}
       />
       {/* Animated progress fill */}
       <AnimatedCircle
-        cx={CENTER}
-        cy={CENTER}
-        r={RADIUS}
+        cx={geom.center}
+        cy={geom.center}
+        r={geom.radius}
         fill="none"
         stroke={isActive ? vital.color : vital.colorDim}
-        strokeWidth={STROKE}
+        strokeWidth={geom.stroke}
         strokeLinecap="round"
         strokeDasharray={fillDash}
         strokeDashoffset={0}
         rotation={rotation}
-        origin={`${CENTER}, ${CENTER}`}
+        origin={`${geom.center}, ${geom.center}`}
       />
     </G>
   );
@@ -236,6 +249,9 @@ const VitalRing: React.FC<{
   activeIndex: number;
   onPress: (index: number) => void;
 }> = ({ vitals, activeIndex, onPress }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const geom = getRingGeometry(windowWidth);
+
   // Icon scale animations
   const iconScales = useRef(vitals.map(() => new Animated.Value(1))).current;
 
@@ -267,7 +283,7 @@ const VitalRing: React.FC<{
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     pulse.start();
     return () => pulse.stop();
@@ -278,7 +294,6 @@ const VitalRing: React.FC<{
   const centerSlide = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Fade out, slide, fade in
     Animated.sequence([
       Animated.parallel([
         Animated.timing(centerOpacity, {
@@ -310,26 +325,45 @@ const VitalRing: React.FC<{
 
   const active = vitals[activeIndex] || vitals[0];
 
+  const getIconPosition = (index: number) => {
+    const angleDeg =
+      index * (geom.segmentDeg + geom.gapDeg) + geom.segmentDeg / 2 - 90;
+    const angleRad = (angleDeg * Math.PI) / 180;
+    return {
+      x: geom.containerCenter + geom.iconRadius * Math.cos(angleRad),
+      y: geom.containerCenter + geom.iconRadius * Math.sin(angleRad),
+    };
+  };
+
   return (
-    <View style={ringStyles.container}>
+    <View
+      style={[
+        ringStyles.container,
+        { width: geom.containerSize, height: geom.containerSize },
+      ]}
+    >
       {/* Outer glow ring */}
       <Animated.View
         style={[
           ringStyles.glowRing,
           {
+            width: geom.size + (geom.isCompact ? 22 : 30),
+            height: geom.size + (geom.isCompact ? 22 : 30),
+            borderRadius: (geom.size + (geom.isCompact ? 22 : 30)) / 2,
             borderColor: active.color + "15",
             transform: [{ scale: pulseAnim }],
           },
         ]}
       />
 
-      <Svg width={SIZE} height={SIZE} style={ringStyles.svgBase}>
+      <Svg width={geom.size} height={geom.size} style={ringStyles.svgBase}>
         {vitals.map((v, i) => (
           <AnimatedSegment
             key={v.key}
             vital={v}
             index={i}
             isActive={i === activeIndex}
+            geom={geom}
           />
         ))}
       </Svg>
@@ -338,6 +372,7 @@ const VitalRing: React.FC<{
       {vitals.map((vital, index) => {
         const pos = getIconPosition(index);
         const isActive = index === activeIndex;
+        const touchRadius = geom.iconButtonSize / 2 + 4;
         return (
           <TouchableOpacity
             key={vital.key}
@@ -346,8 +381,10 @@ const VitalRing: React.FC<{
             style={[
               ringStyles.iconTouch,
               {
-                left: pos.x - 24,
-                top: pos.y - 24,
+                width: geom.iconButtonSize + 8,
+                height: geom.iconButtonSize + 8,
+                left: pos.x - touchRadius,
+                top: pos.y - touchRadius,
               },
             ]}
           >
@@ -355,6 +392,9 @@ const VitalRing: React.FC<{
               style={[
                 ringStyles.iconCircle,
                 {
+                  width: geom.iconButtonSize,
+                  height: geom.iconButtonSize,
+                  borderRadius: geom.iconButtonSize / 2,
                   backgroundColor: isActive ? vital.color : TC.card,
                   borderWidth: isActive ? 0 : 1.5,
                   borderColor: isActive ? "transparent" : TC.inputBorder,
@@ -370,7 +410,7 @@ const VitalRing: React.FC<{
             >
               <Ionicons
                 name={vital.icon}
-                size={isActive ? 20 : 17}
+                size={isActive ? geom.iconSize + 2 : geom.iconSize}
                 color={isActive ? "#FFF" : vital.color}
               />
             </Animated.View>
@@ -390,17 +430,43 @@ const VitalRing: React.FC<{
       >
         <Ionicons
           name={active.icon}
-          size={28}
+          size={geom.isCompact ? 22 : 28}
           color={active.color}
           style={{ marginBottom: 2 }}
         />
-        <Text style={[ringStyles.value, { color: active.color }]}>
+        <Text
+          style={[
+            ringStyles.value,
+            {
+              color: active.color,
+              fontSize: geom.isCompact ? 36 : 46,
+              lineHeight: geom.isCompact ? 40 : 52,
+            },
+          ]}
+        >
           {active.value}
         </Text>
         {active.unit ? (
-          <Text style={ringStyles.unit}>{active.unit}</Text>
+          <Text
+            style={[
+              ringStyles.unit,
+              geom.isCompact && { fontSize: 13, marginTop: -2 },
+            ]}
+          >
+            {active.unit}
+          </Text>
         ) : null}
-        <View style={[ringStyles.labelBadge, { backgroundColor: active.color + "12" }]}>
+        <View
+          style={[
+            ringStyles.labelBadge,
+            {
+              backgroundColor: active.color + "12",
+              marginTop: geom.isCompact ? 6 : 10,
+              paddingHorizontal: geom.isCompact ? 10 : 14,
+              paddingVertical: geom.isCompact ? 3 : 5,
+            },
+          ]}
+        >
           <Text style={[ringStyles.label, { color: active.color }]}>
             {active.label}
           </Text>
@@ -412,17 +478,12 @@ const VitalRing: React.FC<{
 
 const ringStyles = StyleSheet.create({
   container: {
-    width: CONTAINER_SIZE,
-    height: CONTAINER_SIZE,
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "center",
   },
   glowRing: {
     position: "absolute",
-    width: SIZE + 32,
-    height: SIZE + 32,
-    borderRadius: (SIZE + 32) / 2,
     borderWidth: 2,
   },
   svgBase: {
@@ -430,16 +491,11 @@ const ringStyles = StyleSheet.create({
   },
   iconTouch: {
     position: "absolute",
-    width: 48,
-    height: 48,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
   },
   iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -462,11 +518,9 @@ const ringStyles = StyleSheet.create({
     justifyContent: "center",
   },
   value: {
-    fontSize: 48,
     fontWeight: "800",
     fontVariant: ["tabular-nums"],
     letterSpacing: -1.5,
-    lineHeight: 54,
   },
   unit: {
     fontSize: 15,
@@ -476,9 +530,6 @@ const ringStyles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   labelBadge: {
-    marginTop: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
     borderRadius: 14,
     borderCurve: "continuous" as any,
   },
@@ -499,7 +550,9 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   averages,
   alertsCount = 0,
 }) => {
-  const [liveVitals, setLiveVitals] = useState<VitalConfig[]>(liveData || getEmptyVitals());
+  const [liveVitals, setLiveVitals] = useState<VitalConfig[]>(
+    liveData || getEmptyVitals(),
+  );
 
   useEffect(() => {
     if (liveData) {
@@ -573,13 +626,18 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   }, []);
 
   // Stat data for the inline row
-  const getAvgValue = useCallback((v: VitalConfig): string => {
-    if (!averages) return "---";
-    if (v.key === "heart") return averages.hr ? String(averages.hr) : "---";
-    if (v.key === "oxygen") return averages.spo2 ? String(averages.spo2) : "---";
-    if (v.key === "temp") return averages.temp ? String(averages.temp) : "---";
-    return "Media";
-  }, [averages]);
+  const getAvgValue = useCallback(
+    (v: VitalConfig): string => {
+      if (!averages) return "---";
+      if (v.key === "heart") return averages.hr ? String(averages.hr) : "---";
+      if (v.key === "oxygen")
+        return averages.spo2 ? String(averages.spo2) : "---";
+      if (v.key === "temp")
+        return averages.temp ? String(averages.temp) : "---";
+      return "Media";
+    },
+    [averages],
+  );
 
   const getAvgLabel = useCallback((v: VitalConfig): string => {
     if (v.key === "heart") return "Promedio";
@@ -664,7 +722,12 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
       >
         {/* Stat: Promedio */}
         <View style={cardStyles.statItem}>
-          <View style={[cardStyles.statIcon, { backgroundColor: vital.color + "12" }]}>
+          <View
+            style={[
+              cardStyles.statIcon,
+              { backgroundColor: vital.color + "12" },
+            ]}
+          >
             <Ionicons name="analytics" size={18} color={vital.color} />
           </View>
           <View>
@@ -683,7 +746,12 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 
         {/* Stat: Alertas */}
         <View style={cardStyles.statItem}>
-          <View style={[cardStyles.statIcon, { backgroundColor: TC.vitalHeart + "12" }]}>
+          <View
+            style={[
+              cardStyles.statIcon,
+              { backgroundColor: TC.vitalHeart + "12" },
+            ]}
+          >
             <Ionicons name="shield-checkmark" size={18} color={TC.vitalHeart} />
           </View>
           <View>
@@ -699,37 +767,37 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 const cardStyles = StyleSheet.create({
   card: {
     backgroundColor: TC.card,
-    borderRadius: 32,
-    paddingTop: 20,
-    paddingBottom: 24,
-    paddingHorizontal: 16,
+    borderRadius: 28,
+    paddingTop: 14,
+    paddingBottom: 16,
+    paddingHorizontal: 12,
     alignItems: "center",
     borderCurve: "continuous" as any,
     borderWidth: 1,
     borderColor: TC.accentLight,
     width: "100%",
     shadowColor: TC.accent,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 6,
   },
   liveRow: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
     gap: 6,
-    marginLeft: 12,
-    marginBottom: 4,
+    marginLeft: 8,
+    marginBottom: 2,
   },
   liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: TC.accent,
   },
   liveText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     color: TC.textMuted,
     letterSpacing: 1.2,
@@ -737,38 +805,38 @@ const cardStyles = StyleSheet.create({
   statusChip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 8,
-    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    marginTop: 6,
     borderCurve: "continuous" as any,
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   statusText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
 
   /* ── Inline Stats ── */
   divider: {
-    width: "85%",
+    width: "90%",
     height: 1,
     backgroundColor: TC.accentLight,
-    marginTop: 20,
-    marginBottom: 4,
+    marginTop: 12,
+    marginBottom: 2,
   },
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: 16,
-    paddingHorizontal: 8,
+    paddingTop: 10,
+    paddingHorizontal: 4,
     gap: 0,
     width: "100%",
   },
@@ -777,40 +845,40 @@ const cardStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
+    gap: 8,
   },
   statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     borderCurve: "continuous" as any,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "800",
     color: TC.textDark,
     fontVariant: ["tabular-nums"],
-    letterSpacing: -0.5,
-    lineHeight: 24,
+    letterSpacing: -0.4,
+    lineHeight: 20,
   },
   statUnit: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "600",
     color: TC.textMuted,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: TC.textMuted,
     marginTop: 1,
   },
   statSeparator: {
     width: 1,
-    height: 36,
+    height: 28,
     backgroundColor: TC.inputBorder,
-    marginHorizontal: 4,
+    marginHorizontal: 2,
   },
 });
 

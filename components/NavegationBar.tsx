@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Haptics from "expo-haptics";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withSequence,
-} from "react-native-reanimated";
-import { TC } from "./theme";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import * as Haptics from "expo-haptics";
+import React, { useEffect, useState } from "react";
+import {
+    StyleSheet,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native";
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TC } from "./theme";
 
 const TAB_ICONS: {
   outline: keyof typeof Ionicons.glyphMap;
@@ -32,40 +32,46 @@ interface TabButtonProps {
   isActive: boolean;
   iconOutline: keyof typeof Ionicons.glyphMap;
   iconFilled: keyof typeof Ionicons.glyphMap;
+  iconSize: number;
   onPress: () => void;
 }
 
-function TabButton({ isActive, iconOutline, iconFilled, onPress }: TabButtonProps) {
-  const scale = useSharedValue(1);
+function TabButton({
+  isActive,
+  iconOutline,
+  iconFilled,
+  iconSize,
+  onPress,
+}: TabButtonProps) {
+  const scale = useSharedValue(isActive ? 1.08 : 1.0);
+  const translateY = useSharedValue(isActive ? -2 : 0);
+  const opacity = useSharedValue(isActive ? 1.0 : 0.65);
 
   useEffect(() => {
     if (isActive) {
-      scale.value = withSequence(
-        withTiming(0.8, { duration: 80 }),
-        withSpring(1.2, { damping: 10, stiffness: 120 }),
-        withSpring(1.0, { damping: 12, stiffness: 120 })
-      );
+      scale.value = withSpring(1.08, { damping: 18, stiffness: 240 });
+      translateY.value = withSpring(-2, { damping: 18, stiffness: 240 });
+      opacity.value = withTiming(1.0, { duration: 160 });
     } else {
-      scale.value = withTiming(1.0, { duration: 150 });
+      scale.value = withSpring(1.0, { damping: 18, stiffness: 240 });
+      translateY.value = withSpring(0, { damping: 18, stiffness: 240 });
+      opacity.value = withTiming(0.65, { duration: 160 });
     }
   }, [isActive]);
 
   const animatedIconStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ scale: scale.value }],
+      opacity: opacity.value,
+      transform: [{ scale: scale.value }, { translateY: translateY.value }],
     };
   });
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onPress}
-      style={styles.tab}
-    >
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.tab}>
       <Animated.View style={animatedIconStyle}>
         <Ionicons
           name={isActive ? iconFilled : iconOutline}
-          size={24}
+          size={iconSize}
           color={isActive ? TC.navActive : TC.navInactive}
         />
       </Animated.View>
@@ -78,34 +84,73 @@ export default function NavigationBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmall = windowWidth <= 385;
+  const bubbleWidth = isSmall ? 48 : 56;
+  const bubbleHeight = isSmall ? 38 : 44;
+  const barHeight = isSmall ? 56 : 64;
+  const horizontalMargin = isSmall ? 14 : 20;
+  const barWidthLimit = Math.min(windowWidth - horizontalMargin * 2, 460);
+
   const [barWidth, setBarWidth] = useState(0);
   const tabWidth = barWidth / state.routes.length;
 
-  const bubbleStyle = useAnimatedStyle(() => {
-    if (barWidth === 0) {
-      return { opacity: 0 };
+  const translateX = useSharedValue(0);
+  const hasPositioned = useSharedValue(false);
+
+  useEffect(() => {
+    if (tabWidth > 0) {
+      const targetX = state.index * tabWidth + (tabWidth - bubbleWidth) / 2;
+      if (!hasPositioned.value) {
+        translateX.value = targetX;
+        hasPositioned.value = true;
+      } else {
+        translateX.value = withSpring(targetX, {
+          damping: 24, // Amortiguación crítica: sin sacudidas ni oscilación
+          stiffness: 220, // Rápido y fluido
+          mass: 0.7, // Movimiento ligero y natural
+        });
+      }
     }
-    // Center a 56px wide bubble in the middle of the active tab
-    const targetX = state.index * tabWidth + (tabWidth - 56) / 2;
+  }, [state.index, tabWidth, bubbleWidth]);
+
+  const bubbleStyle = useAnimatedStyle(() => {
     return {
-      opacity: 1,
-      transform: [{ translateX: withSpring(targetX, { damping: 15, stiffness: 120 }) }],
+      opacity: barWidth === 0 ? 0 : 1,
+      transform: [{ translateX: translateX.value }],
     };
   });
 
   return (
     <View
-      style={[
-        styles.wrapper,
-        { paddingBottom: Math.max(insets.bottom, 16) },
-      ]}
+      style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 12) }]}
     >
       <View
-        style={styles.bar}
+        style={[
+          styles.bar,
+          {
+            width: barWidthLimit,
+            height: barHeight,
+            borderRadius: barHeight / 2,
+          },
+        ]}
         onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
       >
         {barWidth > 0 && (
-          <Animated.View style={[styles.bubble, bubbleStyle]} />
+          <Animated.View
+            style={[
+              styles.bubble,
+              {
+                width: bubbleWidth,
+                height: bubbleHeight,
+                borderRadius: bubbleHeight / 2,
+                top: (barHeight - bubbleHeight) / 2,
+              },
+              bubbleStyle,
+            ]}
+          >
+            <View style={styles.bubbleAccent} />
+          </Animated.View>
         )}
         {state.routes.map((route, i) => {
           const isActive = state.index === i;
@@ -115,6 +160,7 @@ export default function NavigationBar({
               isActive={isActive}
               iconOutline={TAB_ICONS[i]?.outline}
               iconFilled={TAB_ICONS[i]?.filled}
+              iconSize={isSmall ? 21 : 24}
               onPress={() => {
                 if (!isActive) {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -133,32 +179,43 @@ const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
     bottom: 0,
-    left: 24,
-    right: 24,
+    left: 0,
+    right: 0,
+    alignItems: "center",
   },
   bar: {
-    height: 64,
     backgroundColor: TC.navBg,
-    borderRadius: 32,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.navShadow,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 16,
+    shadowRadius: 14,
     elevation: 6,
   },
   bubble: {
     position: "absolute",
-    height: 44,
-    width: 56,
-    borderRadius: 22,
     backgroundColor: TC.accentLight,
-    top: 9,
+    borderWidth: 1,
+    borderColor: TC.accent + "22",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 4,
+    shadowColor: TC.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
     left: 0,
+  },
+  bubbleAccent: {
+    width: 14,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: TC.accent,
   },
   tab: {
     flex: 1,
