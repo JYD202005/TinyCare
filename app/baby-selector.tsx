@@ -1,12 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { database } from '../src/database';
-import { Perfil } from '../src/database/models';
-import { TC } from '../components/theme';
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BabyAvatar } from "../components/BabyAvatar";
+import { TC } from "../components/theme";
+import { database } from "../src/database";
+import { Perfil } from "../src/database/models";
 
 export default function BabySelectorScreen() {
   const router = useRouter();
@@ -16,9 +23,12 @@ export default function BabySelectorScreen() {
 
   useEffect(() => {
     const fetchBabies = async () => {
-      const perfiles = await database.collections.get<Perfil>('perfiles').query().fetch();
+      const perfiles = await database.collections
+        .get<Perfil>("perfiles")
+        .query()
+        .fetch();
       setBabies(perfiles);
-      const storedActive = await AsyncStorage.getItem('@active_baby_id');
+      const storedActive = await AsyncStorage.getItem("@active_baby_id");
       if (storedActive) {
         setActiveId(storedActive);
       } else if (perfiles.length > 0) {
@@ -29,7 +39,7 @@ export default function BabySelectorScreen() {
   }, []);
 
   const handleSelect = async (id: string) => {
-    await AsyncStorage.setItem('@active_baby_id', id);
+    await AsyncStorage.setItem("@active_baby_id", id);
     setActiveId(id);
     router.back();
   };
@@ -37,7 +47,12 @@ export default function BabySelectorScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Ionicons name="arrow-back" size={28} color={TC.textDark} onPress={() => router.back()} />
+        <Ionicons
+          name="arrow-back"
+          size={28}
+          color={TC.textDark}
+          onPress={() => router.back()}
+        />
         <Text style={styles.title}>Seleccionar Perfil Activo</Text>
       </View>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -51,14 +66,19 @@ export default function BabySelectorScreen() {
               onPress={() => handleSelect(baby.id)}
             >
               <View style={styles.cardLeft}>
-                <View style={[styles.emojiBox, isActive && styles.emojiBoxActive]}>
-                  <Text style={styles.emoji}>{baby.avatar || '👶🏻'}</Text>
-                </View>
+                <BabyAvatar
+                  avatar={baby.avatar}
+                  name={baby.nombreIdentificador}
+                  size={42}
+                  containerStyle={{ marginRight: 12 }}
+                />
                 <View>
                   <Text style={[styles.name, isActive && styles.nameActive]}>
-                    {baby.nombreIdentificador || 'Bebé'}
+                    {baby.nombreIdentificador || "Bebé"}
                   </Text>
-                  {isActive && <Text style={styles.activeLabel}>Activo actualmente</Text>}
+                  {isActive && (
+                    <Text style={styles.activeLabel}>Activo actualmente</Text>
+                  )}
                 </View>
               </View>
               {isActive && (
@@ -78,55 +98,65 @@ export default function BabySelectorScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: TC.bg },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 24,
     paddingBottom: 20,
     paddingTop: 10,
     backgroundColor: TC.bg,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: "#F3F4F6",
   },
-  title: { fontSize: 20, fontWeight: '700', color: TC.textDark, marginLeft: 16 },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: TC.textDark,
+    marginLeft: 16,
+  },
   scrollContent: { padding: 24 },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: TC.card,
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: 'transparent',
-    shadowColor: '#000',
+    borderColor: "transparent",
+    shadowColor: "#000",
     shadowOpacity: 0.03,
     shadowRadius: 8,
     elevation: 2,
   },
   cardActive: {
-    borderColor: '#10B981',
-    backgroundColor: '#ECFDF5',
+    borderColor: "#10B981",
+    backgroundColor: "#ECFDF5",
   },
   cardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   emojiBox: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 16,
   },
   emojiBoxActive: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: "#D1FAE5",
   },
   emoji: { fontSize: 24 },
-  name: { fontSize: 18, fontWeight: '600', color: TC.textDark },
-  nameActive: { color: '#065F46' },
-  activeLabel: { fontSize: 14, color: '#10B981', marginTop: 2 },
-  emptyText: { textAlign: 'center', marginTop: 40, color: TC.textMuted, fontSize: 16 },
+  name: { fontSize: 18, fontWeight: "600", color: TC.textDark },
+  nameActive: { color: "#065F46" },
+  activeLabel: { fontSize: 14, color: "#10B981", marginTop: 2 },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 40,
+    color: TC.textMuted,
+    fontSize: 16,
+  },
 });

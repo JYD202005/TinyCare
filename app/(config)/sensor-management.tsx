@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import { BabyAvatar } from "@/components/BabyAvatar";
+import { TC } from "@/components/theme";
+import { useToast } from "@/components/Toast";
+import { database } from "@/src/database";
+import { Dispositivo, Perfil } from "@/src/database/models";
+import { adapter } from "@/src/services/ble/bleService";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Platform,
-  PermissionsAndroid,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { TC } from '@/components/theme';
-import { database } from '@/src/database';
-import { Perfil, Dispositivo } from '@/src/database/models';
-import { adapter } from '@/src/services/ble/bleService';
-import { useToast } from '@/components/Toast';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+    ActivityIndicator,
+    Modal,
+    PermissionsAndroid,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface ScannedDevice {
   id: string;
@@ -32,10 +32,10 @@ export default function SensorManagement() {
   const [babies, setBabies] = useState<Perfil[]>([]);
   const [selectedBaby, setSelectedBaby] = useState<Perfil | null>(null);
   const [pairedDevices, setPairedDevices] = useState<Dispositivo[]>([]);
-  
+
   const [showPairModal, setShowPairModal] = useState(false);
   const [deviceToPair, setDeviceToPair] = useState<ScannedDevice | null>(null);
-  
+
   const { showToast, ToastComponent } = useToast();
 
   useEffect(() => {
@@ -46,19 +46,22 @@ export default function SensorManagement() {
   }, []);
 
   const loadData = async () => {
-    const perfiles = await database.get<Perfil>('perfiles').query().fetch();
+    const perfiles = await database.get<Perfil>("perfiles").query().fetch();
     setBabies(perfiles);
-    
-    const dispositivos = await database.get<Dispositivo>('dispositivos').query().fetch();
+
+    const dispositivos = await database
+      .get<Dispositivo>("dispositivos")
+      .query()
+      .fetch();
     setPairedDevices(dispositivos);
-    
+
     if (perfiles.length > 0) {
       setSelectedBaby(perfiles[0]);
     }
   };
 
   const requestPermissions = async () => {
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       try {
         if (Number(Platform.Version) >= 31) {
           const result = await PermissionsAndroid.requestMultiple([
@@ -67,8 +70,10 @@ export default function SensorManagement() {
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           ]);
           return (
-            result['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
-            result['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED
+            result["android.permission.BLUETOOTH_CONNECT"] ===
+              PermissionsAndroid.RESULTS.GRANTED &&
+            result["android.permission.BLUETOOTH_SCAN"] ===
+              PermissionsAndroid.RESULTS.GRANTED
           );
         } else {
           const result = await PermissionsAndroid.requestMultiple([
@@ -76,8 +81,10 @@ export default function SensorManagement() {
             PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
           ]);
           return (
-            result['android.permission.ACCESS_FINE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED ||
-            result['android.permission.ACCESS_COARSE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED
+            result["android.permission.ACCESS_FINE_LOCATION"] ===
+              PermissionsAndroid.RESULTS.GRANTED ||
+            result["android.permission.ACCESS_COARSE_LOCATION"] ===
+              PermissionsAndroid.RESULTS.GRANTED
           );
         }
       } catch (err) {
@@ -91,7 +98,7 @@ export default function SensorManagement() {
   const startScan = async () => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
-      showToast('error', 'Se requieren permisos de Bluetooth para escanear');
+      showToast("error", "Se requieren permisos de Bluetooth para escanear");
       return;
     }
 
@@ -99,25 +106,31 @@ export default function SensorManagement() {
     setScanning(true);
 
     // Simulador Web — solo en plataforma web donde BLE no está disponible
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       setTimeout(() => {
-        setDevices(prev => {
-          if (prev.find(d => d.id === 'SIM-ESP32-8A9C')) return prev;
-          return [...prev, { id: 'SIM-ESP32-8A9C', name: 'Simulador ESP32-TinyCare' }];
+        setDevices((prev) => {
+          if (prev.find((d) => d.id === "SIM-ESP32-8A9C")) return prev;
+          return [
+            ...prev,
+            { id: "SIM-ESP32-8A9C", name: "Simulador ESP32-TinyCare" },
+          ];
         });
       }, 1500);
-      
+
       setTimeout(() => {
-        setDevices(prev => {
-          if (prev.find(d => d.id === 'SIM-BLUE-11B2')) return prev;
-          return [...prev, { id: 'SIM-BLUE-11B2', name: 'Bluefruit SmartBaby' }];
+        setDevices((prev) => {
+          if (prev.find((d) => d.id === "SIM-BLUE-11B2")) return prev;
+          return [
+            ...prev,
+            { id: "SIM-BLUE-11B2", name: "Bluefruit SmartBaby" },
+          ];
         });
       }, 3500);
     }
 
     adapter.startScanning((device) => {
-      setDevices(prev => {
-        if (prev.find(d => d.id === device.id)) return prev;
+      setDevices((prev) => {
+        if (prev.find((d) => d.id === device.id)) return prev;
         return [...prev, { id: device.id, name: device.name }];
       });
     });
@@ -143,17 +156,19 @@ export default function SensorManagement() {
 
     try {
       await database.write(async () => {
-        await database.get<Dispositivo>('dispositivos').create(d => {
+        await database.get<Dispositivo>("dispositivos").create((d) => {
           d.idPerfil = selectedBaby.id;
           d.identificadorHardware = deviceToPair.id;
-          d.nombre = deviceToPair.name || 'Monitor TinyCare';
-          d.tipoControlador = deviceToPair.name?.includes('ESP32') ? 'ESP32' : 'Bluefruit';
-          d.estado = 'activo';
+          d.nombre = deviceToPair.name || "Monitor TinyCare";
+          d.tipoControlador = deviceToPair.name?.includes("ESP32")
+            ? "ESP32"
+            : "Bluefruit";
+          d.estado = "activo";
           d.sensoresConfigJson = JSON.stringify([
-            { tipo: 'FC', estado: 'ok', nombre: 'Frecuencia Cardíaca' },
-            { tipo: 'SpO2', estado: 'ok', nombre: 'Oxigenación' },
-            { tipo: 'TEMP', estado: 'ok', nombre: 'Temperatura' },
-            { tipo: 'MOV', estado: 'ok', nombre: 'Acelerómetro' },
+            { tipo: "FC", estado: "ok", nombre: "Frecuencia Cardíaca" },
+            { tipo: "SpO2", estado: "ok", nombre: "Oxigenación" },
+            { tipo: "TEMP", estado: "ok", nombre: "Temperatura" },
+            { tipo: "MOV", estado: "ok", nombre: "Acelerómetro" },
           ]);
           d.ultimaConexion = Date.now();
         });
@@ -161,25 +176,25 @@ export default function SensorManagement() {
 
       setShowPairModal(false);
       setDeviceToPair(null);
-      showToast('success', 'Sensor vinculado exitosamente');
+      showToast("success", "Sensor vinculado exitosamente");
       loadData();
     } catch (error) {
-      console.error('Error al vincular dispositivo:', error);
-      showToast('error', 'Ocurrió un error al vincular el sensor');
+      console.error("Error al vincular dispositivo:", error);
+      showToast("error", "Ocurrió un error al vincular el sensor");
     }
   };
 
   const deleteDevice = async (id: string) => {
     try {
       await database.write(async () => {
-        const device = await database.get<Dispositivo>('dispositivos').find(id);
+        const device = await database.get<Dispositivo>("dispositivos").find(id);
         await device.destroyPermanently();
       });
-      showToast('success', 'Sensor eliminado');
+      showToast("success", "Sensor eliminado");
       loadData();
     } catch (error) {
-      console.error('Error al eliminar dispositivo:', error);
-      showToast('error', 'Ocurrió un error al intentar eliminar el sensor');
+      console.error("Error al eliminar dispositivo:", error);
+      showToast("error", "Ocurrió un error al intentar eliminar el sensor");
     }
   };
 
@@ -190,7 +205,10 @@ export default function SensorManagement() {
       {/* ── Header — flat, no WaveHeader, matches home.tsx ── */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backCircle}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backCircle}
+          >
             <Ionicons name="chevron-back" size={24} color={TC.textDark} />
           </TouchableOpacity>
         </View>
@@ -208,7 +226,12 @@ export default function SensorManagement() {
         {/* ── Paired Devices Section ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBadge, { backgroundColor: TC.accent + '15' }]}>
+            <View
+              style={[
+                styles.sectionIconBadge,
+                { backgroundColor: TC.accent + "15" },
+              ]}
+            >
               <Ionicons name="hardware-chip" size={16} color={TC.accent} />
             </View>
             <Text style={styles.sectionTitle}>Dispositivos Vinculados</Text>
@@ -216,53 +239,93 @@ export default function SensorManagement() {
 
           {pairedDevices.length === 0 ? (
             <View style={styles.emptyCard}>
-              <View style={[styles.emptyIconBox, { backgroundColor: TC.accent + '10' }]}>
-                <Ionicons name="bluetooth-outline" size={36} color={TC.textMuted} />
+              <View
+                style={[
+                  styles.emptyIconBox,
+                  { backgroundColor: TC.accent + "10" },
+                ]}
+              >
+                <Ionicons
+                  name="bluetooth-outline"
+                  size={36}
+                  color={TC.textMuted}
+                />
               </View>
               <Text style={styles.emptyTitle}>Sin sensores vinculados</Text>
-              <Text style={styles.emptySubtitle}>Escanea y vincula un monitor para comenzar</Text>
+              <Text style={styles.emptySubtitle}>
+                Escanea y vincula un monitor para comenzar
+              </Text>
             </View>
           ) : (
-            pairedDevices.map(dev => {
-              const baby = babies.find(b => b.id === dev.idPerfil);
+            pairedDevices.map((dev) => {
+              const baby = babies.find((b) => b.id === dev.idPerfil);
               const sensors = dev.sensoresConfig;
               return (
                 <View key={dev.id} style={styles.deviceCard}>
                   <View style={styles.deviceHeader}>
                     <View style={styles.deviceIconBox}>
-                      <Ionicons name="hardware-chip" size={22} color={TC.accent} />
+                      <Ionicons
+                        name="hardware-chip"
+                        size={22}
+                        color={TC.accent}
+                      />
                     </View>
                     <View style={styles.deviceInfo}>
                       <Text style={styles.deviceName}>{dev.nombre}</Text>
                       <Text style={styles.deviceSub}>
-                        Asignado a: <Text style={{ fontWeight: '700' }}>{baby?.nombreIdentificador || 'Bebé'}</Text>
+                        Asignado a:{" "}
+                        <Text style={{ fontWeight: "700" }}>
+                          {baby?.nombreIdentificador || "Bebé"}
+                        </Text>
                       </Text>
                     </View>
                     <TouchableOpacity
                       onPress={() => deleteDevice(dev.id)}
                       style={styles.deleteBtn}
                     >
-                      <Ionicons name="trash-outline" size={18} color={TC.vitalHeart} />
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color={TC.vitalHeart}
+                      />
                     </TouchableOpacity>
                   </View>
-                  
+
                   <View style={styles.divider} />
 
                   <View style={styles.sensorGrid}>
                     {sensors.map((s: any) => (
                       <View key={s.tipo} style={styles.sensorBadge}>
-                        <View style={[styles.statusDot, { backgroundColor: s.estado === 'ok' ? '#4ADE80' : TC.vitalHeart }]} />
+                        <View
+                          style={[
+                            styles.statusDot,
+                            {
+                              backgroundColor:
+                                s.estado === "ok" ? "#4ADE80" : TC.vitalHeart,
+                            },
+                          ]}
+                        />
                         <Text style={styles.sensorName}>{s.tipo}</Text>
                       </View>
                     ))}
                   </View>
-                  
+
                   <View style={styles.deviceFooter}>
                     <View style={styles.statusPill}>
-                      <View style={[styles.statusDotSmall, { backgroundColor: '#4ADE80' }]} />
-                      <Text style={styles.statusText}>{dev.estado.toUpperCase()}</Text>
+                      <View
+                        style={[
+                          styles.statusDotSmall,
+                          { backgroundColor: "#4ADE80" },
+                        ]}
+                      />
+                      <Text style={styles.statusText}>
+                        {dev.estado.toUpperCase()}
+                      </Text>
                     </View>
-                    <Text style={styles.lastSeen}>Última vez: {new Date(dev.ultimaConexion).toLocaleTimeString()}</Text>
+                    <Text style={styles.lastSeen}>
+                      Última vez:{" "}
+                      {new Date(dev.ultimaConexion).toLocaleTimeString()}
+                    </Text>
                   </View>
                 </View>
               );
@@ -273,44 +336,84 @@ export default function SensorManagement() {
         {/* ── Scan Section ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBadge, { backgroundColor: TC.vitalOxygen + '15' }]}>
+            <View
+              style={[
+                styles.sectionIconBadge,
+                { backgroundColor: TC.vitalOxygen + "15" },
+              ]}
+            >
               <Ionicons name="search" size={16} color={TC.vitalOxygen} />
             </View>
             <Text style={styles.sectionTitle}>Buscar Nuevos Sensores</Text>
-            {scanning && <ActivityIndicator size="small" color={TC.accent} style={{ marginLeft: 8 }} />}
+            {scanning && (
+              <ActivityIndicator
+                size="small"
+                color={TC.accent}
+                style={{ marginLeft: 8 }}
+              />
+            )}
           </View>
-          
+
           {!scanning ? (
-            <TouchableOpacity style={styles.scanBtn} onPress={startScan} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.scanBtn}
+              onPress={startScan}
+              activeOpacity={0.8}
+            >
               <View style={styles.scanBtnIconBox}>
                 <Ionicons name="bluetooth" size={20} color={TC.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.scanBtnTitle}>Iniciar Escaneo</Text>
-                <Text style={styles.scanBtnSub}>Buscar dispositivos BLE cercanos</Text>
+                <Text style={styles.scanBtnSub}>
+                  Buscar dispositivos BLE cercanos
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={TC.textMuted} />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.scanBtnActive} onPress={stopScan} activeOpacity={0.8}>
-              <View style={[styles.scanBtnIconBox, { backgroundColor: TC.vitalHeart + '15' }]}>
+            <TouchableOpacity
+              style={styles.scanBtnActive}
+              onPress={stopScan}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.scanBtnIconBox,
+                  { backgroundColor: TC.vitalHeart + "15" },
+                ]}
+              >
                 <Ionicons name="stop" size={20} color={TC.vitalHeart} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.scanBtnTitle, { color: TC.vitalHeart }]}>Detener Escaneo</Text>
+                <Text style={[styles.scanBtnTitle, { color: TC.vitalHeart }]}>
+                  Detener Escaneo
+                </Text>
                 <Text style={styles.scanBtnSub}>Buscando dispositivos...</Text>
               </View>
               <ActivityIndicator size="small" color={TC.vitalHeart} />
             </TouchableOpacity>
           )}
 
-          {devices.map(dev => (
-            <TouchableOpacity key={dev.id} style={styles.scannedDevice} onPress={() => handlePair(dev)} activeOpacity={0.7}>
-              <View style={[styles.scanBtnIconBox, { backgroundColor: TC.accent + '12' }]}>
+          {devices.map((dev) => (
+            <TouchableOpacity
+              key={dev.id}
+              style={styles.scannedDevice}
+              onPress={() => handlePair(dev)}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.scanBtnIconBox,
+                  { backgroundColor: TC.accent + "12" },
+                ]}
+              >
                 <Ionicons name="bluetooth" size={20} color={TC.accent} />
               </View>
               <View style={{ flex: 1, marginLeft: 14 }}>
-                <Text style={styles.scannedName}>{dev.name || 'Dispositivo Desconocido'}</Text>
+                <Text style={styles.scannedName}>
+                  {dev.name || "Dispositivo Desconocido"}
+                </Text>
                 <Text style={styles.scannedId}>{dev.id}</Text>
               </View>
               <View style={styles.addPill}>
@@ -329,33 +432,63 @@ export default function SensorManagement() {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Vincular Dispositivo</Text>
             <Text style={styles.modalSub}>
-              ¿A qué bebé quieres asignar el monitor <Text style={{ fontWeight: '800' }}>{deviceToPair?.name || 'TinyCare'}</Text>?
+              ¿A qué bebé quieres asignar el monitor{" "}
+              <Text style={{ fontWeight: "800" }}>
+                {deviceToPair?.name || "TinyCare"}
+              </Text>
+              ?
             </Text>
-            
+
             <View style={styles.babyList}>
-              {babies.map(b => (
-                <TouchableOpacity 
-                  key={b.id} 
-                  style={[styles.babyItem, selectedBaby?.id === b.id && styles.babyItemSelected]}
+              {babies.map((b) => (
+                <TouchableOpacity
+                  key={b.id}
+                  style={[
+                    styles.babyItem,
+                    selectedBaby?.id === b.id && styles.babyItemSelected,
+                  ]}
                   onPress={() => setSelectedBaby(b)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.babyEmoji}>{b.avatar || '👶'}</Text>
-                  <Text style={[styles.babyNameText, selectedBaby?.id === b.id && { color: '#FFF' }]}>
+                  <BabyAvatar
+                    avatar={b.avatar}
+                    name={b.nombreIdentificador}
+                    size={32}
+                    containerStyle={{ marginRight: 10 }}
+                  />
+                  <Text
+                    style={[
+                      styles.babyNameText,
+                      selectedBaby?.id === b.id && { color: "#FFF" },
+                    ]}
+                  >
                     {b.nombreIdentificador}
                   </Text>
                   {selectedBaby?.id === b.id && (
-                    <Ionicons name="checkmark-circle" size={22} color="#FFF" style={{ marginLeft: 'auto' }} />
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={22}
+                      color="#FFF"
+                      style={{ marginLeft: "auto" }}
+                    />
                   )}
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowPairModal(false)} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setShowPairModal(false)}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.cancelBtnText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={confirmPairing} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.confirmBtn}
+                onPress={confirmPairing}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.confirmBtnText}>Vincular</Text>
               </TouchableOpacity>
             </View>
@@ -374,21 +507,21 @@ const styles = StyleSheet.create({
 
   /* ── Header — flat, clean, mirrors home.tsx ── */
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
   headerLeft: { width: 44 },
-  headerCenter: { flex: 1, alignItems: 'center' },
+  headerCenter: { flex: 1, alignItems: "center" },
   headerRight: { width: 44 },
   backCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
     backgroundColor: TC.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: TC.textDark,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -397,15 +530,15 @@ const styles = StyleSheet.create({
   },
   headerLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textMuted,
     letterSpacing: 1.2,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginBottom: 4,
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.textDark,
     letterSpacing: -0.4,
   },
@@ -421,8 +554,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     marginBottom: 16,
     paddingHorizontal: 4,
@@ -431,13 +564,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderCurve: 'continuous' as any,
+    alignItems: "center",
+    justifyContent: "center",
+    borderCurve: "continuous" as any,
   },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.textDark,
     letterSpacing: -0.3,
   },
@@ -448,7 +581,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     padding: 24,
     marginBottom: 16,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
@@ -458,17 +591,17 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   deviceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   deviceIconBox: {
     width: 48,
     height: 48,
     borderRadius: 16,
     backgroundColor: TC.accentLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderCurve: 'continuous' as any,
+    alignItems: "center",
+    justifyContent: "center",
+    borderCurve: "continuous" as any,
   },
   deviceInfo: {
     flex: 1,
@@ -476,7 +609,7 @@ const styles = StyleSheet.create({
   },
   deviceName: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.textDark,
     letterSpacing: -0.3,
   },
@@ -484,15 +617,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: TC.textBody,
     marginTop: 2,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   deleteBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: TC.vitalHeart + '08',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: TC.vitalHeart + "08",
+    alignItems: "center",
+    justifyContent: "center",
   },
   divider: {
     height: 1,
@@ -500,20 +633,20 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   sensorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   sensorBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: TC.inputBg,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: TC.inputBorder,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
   },
   statusDot: {
     width: 8,
@@ -523,19 +656,19 @@ const styles = StyleSheet.create({
   },
   sensorName: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textDark,
   },
   deviceFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 16,
   },
   statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4ADE80' + '15',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#4ADE80" + "15",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
@@ -548,51 +681,51 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#16A34A',
+    fontWeight: "800",
+    color: "#16A34A",
   },
   lastSeen: {
     fontSize: 11,
     color: TC.textMuted,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   /* ── Scan Button — banner style like home BLE banners ── */
   scanBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: TC.accentLight,
     borderRadius: 24,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: TC.accent + '30',
-    borderCurve: 'continuous' as any,
+    borderColor: TC.accent + "30",
+    borderCurve: "continuous" as any,
   },
   scanBtnActive: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: TC.vitalHeart + '08',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: TC.vitalHeart + "08",
     borderRadius: 24,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: TC.vitalHeart + '20',
-    borderCurve: 'continuous' as any,
+    borderColor: TC.vitalHeart + "20",
+    borderCurve: "continuous" as any,
   },
   scanBtnIconBox: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: TC.accent + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: TC.accent + "15",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 14,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
   },
   scanBtnTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.accent,
     letterSpacing: -0.3,
     marginBottom: 2,
@@ -600,18 +733,18 @@ const styles = StyleSheet.create({
   scanBtnSub: {
     fontSize: 13,
     color: TC.textBody,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   /* ── Scanned devices ── */
   scannedDevice: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: TC.card,
     padding: 18,
     borderRadius: 24,
     marginBottom: 12,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
@@ -622,19 +755,19 @@ const styles = StyleSheet.create({
   },
   scannedName: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textDark,
   },
   scannedId: {
     fontSize: 12,
     color: TC.textMuted,
     marginTop: 2,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   addPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: TC.accent + '12',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: TC.accent + "12",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
@@ -642,17 +775,17 @@ const styles = StyleSheet.create({
   },
   addPillText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.accent,
   },
 
   /* ── Empty state ── */
   emptyCard: {
-    alignItems: 'center',
+    alignItems: "center",
     padding: 40,
     backgroundColor: TC.card,
     borderRadius: 32,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
@@ -665,29 +798,29 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 16,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.textDark,
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: 14,
     color: TC.textMuted,
-    textAlign: 'center',
-    fontWeight: '500',
+    textAlign: "center",
+    fontWeight: "500",
   },
 
   /* ── Modal — uses TC tokens consistently ── */
   modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(30, 41, 59, 0.5)",
+    justifyContent: "flex-end",
   },
   modalCard: {
     backgroundColor: TC.card,
@@ -695,7 +828,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
     padding: 32,
     paddingBottom: 48,
-    alignItems: 'center',
+    alignItems: "center",
     shadowColor: TC.textDark,
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.1,
@@ -711,7 +844,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.textDark,
     letterSpacing: -0.5,
     marginBottom: 8,
@@ -719,25 +852,25 @@ const styles = StyleSheet.create({
   modalSub: {
     fontSize: 15,
     color: TC.textBody,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 24,
     lineHeight: 22,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   babyList: {
-    width: '100%',
+    width: "100%",
     gap: 12,
     marginBottom: 32,
   },
   babyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderRadius: 20,
     backgroundColor: TC.inputBg,
     borderWidth: 1,
     borderColor: TC.inputBorder,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
   },
   babyItemSelected: {
     backgroundColor: TC.accent,
@@ -749,24 +882,24 @@ const styles = StyleSheet.create({
   },
   babyNameText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textDark,
   },
   modalActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
-    width: '100%',
+    width: "100%",
   },
   cancelBtn: {
     flex: 1,
     padding: 18,
     borderRadius: 20,
-    alignItems: 'center',
+    alignItems: "center",
     backgroundColor: TC.trackBg,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
   },
   cancelBtnText: {
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textBody,
     fontSize: 15,
   },
@@ -774,9 +907,9 @@ const styles = StyleSheet.create({
     flex: 2,
     padding: 18,
     borderRadius: 20,
-    alignItems: 'center',
+    alignItems: "center",
     backgroundColor: TC.accent,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
     shadowColor: TC.accent,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
@@ -784,8 +917,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   confirmBtnText: {
-    fontWeight: '800',
-    color: '#FFF',
+    fontWeight: "800",
+    color: "#FFF",
     fontSize: 15,
   },
 });

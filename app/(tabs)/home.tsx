@@ -3,26 +3,27 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
-  LayoutAnimation,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  UIManager,
-  View,
+    Alert,
+    LayoutAnimation,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    UIManager,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, Line, LinearGradient, Path, Stop } from "react-native-svg";
+import { BabyAvatar } from "../../components/BabyAvatar";
 import DashboardCard, {
-  VITALS,
-  VitalType,
+    VITALS,
+    VitalType,
 } from "../../components/DashboardCard";
 import {
-  getScreenTopPadding,
-  SharedStyles,
-  Typography,
+    getScreenTopPadding,
+    SharedStyles,
+    Typography,
 } from "../../components/styles";
 import { TC } from "../../components/theme";
 import { database } from "../../src/database";
@@ -175,7 +176,7 @@ export default function HomeScreen() {
     {
       id: string;
       name: string;
-      emoji: string;
+      avatar: string;
       connected: boolean;
       deviceId: string | null;
     }[]
@@ -183,7 +184,7 @@ export default function HomeScreen() {
     {
       id: "loading",
       name: "Cargando...",
-      emoji: "⏳",
+      avatar: "b-bear",
       connected: false,
       deviceId: null,
     },
@@ -216,7 +217,7 @@ export default function HomeScreen() {
               return {
                 id: p.id,
                 name: p.nombreIdentificador || "Bebé",
-                emoji: p.avatar || "👶🏻",
+                avatar: p.avatar || "b-bear",
                 connected: hasDevice ? hasDevice.estado === "activo" : false,
                 deviceId: hasDevice ? hasDevice.identificadorHardware : null,
               };
@@ -228,7 +229,7 @@ export default function HomeScreen() {
               {
                 id: "empty",
                 name: "Sin Perfil",
-                emoji: "👶",
+                avatar: "b-bear",
                 connected: false,
                 deviceId: null,
               },
@@ -410,14 +411,12 @@ export default function HomeScreen() {
                     isActive && styles.profilePillActive,
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.profileEmojiBox,
-                      isActive && styles.profileEmojiBoxActive,
-                    ]}
-                  >
-                    <Text style={styles.profileEmoji}>{b.emoji}</Text>
-                  </View>
+                  <BabyAvatar
+                    avatar={b.avatar}
+                    name={b.name}
+                    size={36}
+                    containerStyle={{ marginRight: 8 }}
+                  />
                   <View style={styles.profileInfo}>
                     <Text
                       style={[

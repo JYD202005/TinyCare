@@ -23,6 +23,7 @@ import Svg, {
   Path,
   Stop,
 } from "react-native-svg";
+import { BabyAvatar } from "../../components/BabyAvatar";
 import {
   getScreenTopPadding,
   SharedStyles,
@@ -801,7 +802,7 @@ export default function StatsScreen() {
     {
       id: string;
       name: string;
-      emoji: string;
+      avatar: string;
       connected: boolean;
       deviceId: string | null;
     }[]
@@ -809,7 +810,7 @@ export default function StatsScreen() {
     {
       id: "loading",
       name: "Cargando...",
-      emoji: "⏳",
+      avatar: "b-bear",
       connected: false,
       deviceId: null,
     },
@@ -861,7 +862,7 @@ export default function StatsScreen() {
               return {
                 id: p.id,
                 name: p.nombreIdentificador || "Bebé",
-                emoji: p.avatar || "👶🏻",
+                avatar: p.avatar || "b-bear",
                 connected: hasDevice ? hasDevice.estado === "activo" : false,
                 deviceId: hasDevice ? hasDevice.identificadorHardware : null,
               };
@@ -875,7 +876,7 @@ export default function StatsScreen() {
               {
                 id: "empty",
                 name: "Sin Perfil",
-                emoji: "👶",
+                avatar: "b-bear",
                 connected: false,
                 deviceId: null,
               },
@@ -1107,14 +1108,12 @@ export default function StatsScreen() {
                     isActive && SharedStyles.profilePillActive,
                   ]}
                 >
-                  <View
-                    style={[
-                      SharedStyles.profileEmojiBox,
-                      isActive && SharedStyles.profileEmojiBoxActive,
-                    ]}
-                  >
-                    <Text style={SharedStyles.profileEmoji}>{b.emoji}</Text>
-                  </View>
+                  <BabyAvatar
+                    avatar={b.avatar}
+                    name={b.name}
+                    size={36}
+                    containerStyle={{ marginRight: 8 }}
+                  />
                   <View style={SharedStyles.profileInfo}>
                     <Text
                       style={[

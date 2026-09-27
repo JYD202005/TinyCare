@@ -1,27 +1,28 @@
-import React, { useState } from 'react';
+import { useDatabase } from "@/src/database/context";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Image,
-  Switch,
-  Modal,
-} from 'react-native';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useDatabase } from '@/src/database/context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import PillInput from '@/components/PillInput';
-import ComboDatePicker from '@/components/ComboDatePicker';
-import GradientButton from '@/components/GradientButton';
-import { TC } from '@/components/theme';
-import { useToast } from '@/components/Toast';
-import { notifyCommon } from '@/src/services/notifications/NotificationService';
+import { BabyAvatar, BabyAvatarSelector } from "@/components/BabyAvatar";
+import ComboDatePicker from "@/components/ComboDatePicker";
+import GradientButton from "@/components/GradientButton";
+import PillInput from "@/components/PillInput";
+import { TC } from "@/components/theme";
+import { useToast } from "@/components/Toast";
+import { notifyCommon } from "@/src/services/notifications/NotificationService";
 
 interface Bebe {
   id: number;
@@ -37,15 +38,13 @@ interface Bebe {
   mostrarAvanzado?: boolean;
 }
 
-const DEFAULT_EMOJIS = ['❤️', '✨', '🌟', '🍼', '🧸'];
-
-const EMOJI_CATEGORIES = [
-  { label: '👶 Bebés',     emojis: ['👶','👶🏻','👶🏼','👶🏽','👶🏾','👶🏿','🍼','🐣','🐤','🦄','🦁','🦋'] },
-  { label: '♥️ Corazones', emojis: ['❤️','🧡','💛','💚','💙','💜','🤍','🤎','🖤','💗','💘','💓','💕','💖','💞','💟','♥️','❣️'] },
-  { label: '⭐ Estrellas', emojis: ['⭐','🌟','✨','💫','🌈','☀️','🌚','🌛','🌜','🌙','🪐','🔮'] },
-  { label: '🌼 Naturaleza',emojis: ['🌼','🌸','🌺','🌷','🌶️','🌱','🌿','🍀','🍎','🍓','🍇','🍋','🍑','🥕','🌻'] },
-  { label: '🐾 Animales',  emojis: ['🐱','🐶','🐇','🐻','🐼','🐨','🦧','🐬','🦁','🦎','🐢','🐥','🦜','🐮','🦓'] },
-  { label: '🌟 Otros',     emojis: ['🛡️','🌈','🌍','🌞','🤘','👊','💪','🎉','🎁','🔔','📱','💊','🩺','🚑','⚕️'] },
+const DEFAULT_AVATARS = [
+  "b-bear",
+  "g-bun",
+  "b-rocket",
+  "g-butterfly",
+  "b-cookie",
+  "g-crown",
 ];
 
 export default function Onboarding() {
@@ -53,36 +52,68 @@ export default function Onboarding() {
   const { showToast, ToastComponent } = useToast();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
-  const [bebes, setBebes] = useState<Bebe[]>([{ 
-    id: 1, nombre: '', avatar: '❤️', fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, tieneComplicaciones: false, detallesComplicaciones: '', mostrarAvanzado: false 
-  }]);
-  const [showEmojiPickerId, setShowEmojiPickerId] = useState<number | null>(null);
+  const [bebes, setBebes] = useState<Bebe[]>([
+    {
+      id: 1,
+      nombre: "",
+      avatar: "b-bear",
+      fechaNacimiento: "",
+      peso: "",
+      esPrematuro: false,
+      semanasGestacion: "",
+      riesgoSDR: false,
+      tieneComplicaciones: false,
+      detallesComplicaciones: "",
+      mostrarAvanzado: false,
+    },
+  ]);
+  const [showAvatarPickerId, setShowAvatarPickerId] = useState<number | null>(
+    null,
+  );
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const agregarBebe = () => {
-    const nextEmoji = DEFAULT_EMOJIS[bebes.length % DEFAULT_EMOJIS.length];
-    setBebes([...bebes, { id: Date.now(), nombre: '', avatar: nextEmoji, fechaNacimiento: '', peso: '', esPrematuro: false, semanasGestacion: '', riesgoSDR: false, tieneComplicaciones: false, detallesComplicaciones: '', mostrarAvanzado: false }]);
+    const nextAvatar = DEFAULT_AVATARS[bebes.length % DEFAULT_AVATARS.length];
+    setBebes([
+      ...bebes,
+      {
+        id: Date.now(),
+        nombre: "",
+        avatar: nextAvatar,
+        fechaNacimiento: "",
+        peso: "",
+        esPrematuro: false,
+        semanasGestacion: "",
+        riesgoSDR: false,
+        tieneComplicaciones: false,
+        detallesComplicaciones: "",
+        mostrarAvanzado: false,
+      },
+    ]);
   };
 
   const quitarBebe = (id: number) => {
     if (bebes.length > 1) {
-      setBebes(bebes.filter(b => b.id !== id));
+      setBebes(bebes.filter((b) => b.id !== id));
     }
   };
 
   const actualizarBebe = (id: number, campo: keyof Bebe, valor: any) => {
-    setBebes(bebes.map(b => b.id === id ? { ...b, [campo]: valor } : b));
+    setBebes(bebes.map((b) => (b.id === id ? { ...b, [campo]: valor } : b)));
   };
 
   const guardarDatos = async () => {
     for (let i = 0; i < bebes.length; i++) {
       const bebe = bebes[i];
       if (!bebe.nombre.trim()) {
-        showToast("warning", `Ingresa el nombre del bebé ${i+1}.`);
+        showToast("warning", `Ingresa el nombre del bebé ${i + 1}.`);
         return;
       }
       if (!bebe.fechaNacimiento.trim()) {
-        showToast("warning", `Ingresa la fecha de nacimiento para ${bebe.nombre}.`);
+        showToast(
+          "warning",
+          `Ingresa la fecha de nacimiento para ${bebe.nombre}.`,
+        );
         return;
       }
       if (!bebe.peso.trim()) {
@@ -90,11 +121,18 @@ export default function Onboarding() {
         return;
       }
 
-      const parts = bebe.fechaNacimiento.split('/');
+      const parts = bebe.fechaNacimiento.split("/");
       if (parts.length === 3) {
-        const dateObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        const dateObj = new Date(
+          Number(parts[2]),
+          Number(parts[1]) - 1,
+          Number(parts[0]),
+        );
         if (dateObj > new Date()) {
-          showToast("warning", `La fecha de nacimiento para ${bebe.nombre} no puede ser en el futuro.`);
+          showToast(
+            "warning",
+            `La fecha de nacimiento para ${bebe.nombre} no puede ser en el futuro.`,
+          );
           return;
         }
       }
@@ -108,35 +146,41 @@ export default function Onboarding() {
           if (!bebe.nombre.trim()) continue;
           addedNames.push(bebe.nombre.trim());
 
-          const perfil = await database.get('perfiles').create((p: any) => {
+          const perfil = await database.get("perfiles").create((p: any) => {
             p.nombreIdentificador = bebe.nombre.trim();
             p.avatar = bebe.avatar;
-            p.idUsuarioRemote = 'local';
+            p.idUsuarioRemote = "local";
           });
 
           let fechaParsed = new Date();
           if (bebe.fechaNacimiento) {
-            const parts = bebe.fechaNacimiento.split('/');
+            const parts = bebe.fechaNacimiento.split("/");
             if (parts.length === 3) {
-              fechaParsed = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+              fechaParsed = new Date(
+                Number(parts[2]),
+                Number(parts[1]) - 1,
+                Number(parts[0]),
+              );
             }
           }
 
-          await database.get('datos_personales').create((d: any) => {
+          await database.get("datos_personales").create((d: any) => {
             d.idPerfil = perfil.id;
             d.primerNombre = bebe.nombre.trim();
-            d.apellidoPaterno = ''; 
-            d.sexo = 'No Especificado'; 
+            d.apellidoPaterno = "";
+            d.sexo = "No Especificado";
             d.fechaNacimiento = fechaParsed.getTime();
           });
 
           const now = new Date();
-          const diasDeVida = Math.floor((now.getTime() - fechaParsed.getTime()) / (1000 * 60 * 60 * 24));
-          let grupoEdad = 'Nino';
-          if (diasDeVida <= 28) grupoEdad = 'Neonato';
-          else if (diasDeVida <= 365) grupoEdad = 'Lactante';
+          const diasDeVida = Math.floor(
+            (now.getTime() - fechaParsed.getTime()) / (1000 * 60 * 60 * 24),
+          );
+          let grupoEdad = "Nino";
+          if (diasDeVida <= 28) grupoEdad = "Neonato";
+          else if (diasDeVida <= 365) grupoEdad = "Lactante";
 
-          await database.get('salud_contexto').create((s: any) => {
+          await database.get("salud_contexto").create((s: any) => {
             s.idPerfil = perfil.id;
             s.pesoKg = parseFloat(bebe.peso) || null;
             s.esPrematuro = bebe.esPrematuro;
@@ -144,12 +188,14 @@ export default function Onboarding() {
             s.sospechaCardiopatia = false;
             s.grupoEdad = grupoEdad;
             s.diasDeVida = diasDeVida >= 0 ? diasDeVida : 0;
-            s.edadGestacionalSemanas = bebe.esPrematuro ? (parseInt(bebe.semanasGestacion) || null) : null;
+            s.edadGestacionalSemanas = bebe.esPrematuro
+              ? parseInt(bebe.semanasGestacion) || null
+              : null;
             s.tieneComplicaciones = bebe.tieneComplicaciones;
             s.detallesComplicaciones = bebe.detallesComplicaciones.trim();
           });
 
-          await database.get('alertas_medicas').create((a: any) => {
+          await database.get("alertas_medicas").create((a: any) => {
             a.idPerfil = perfil.id;
             a.tipoAlerta = "Registro Exitoso";
             a.nivel = "Info";
@@ -161,9 +207,12 @@ export default function Onboarding() {
           });
         }
       });
-      
+
       for (const name of addedNames) {
-        await notifyCommon("Nuevo bebé registrado", `El perfil de ${name} está listo en TinyCare.`);
+        await notifyCommon(
+          "Nuevo bebé registrado",
+          `El perfil de ${name} está listo en TinyCare.`,
+        );
       }
 
       setShowSuccessModal(true);
@@ -179,10 +228,13 @@ export default function Onboarding() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 20 },
+          ]}
           bounces={false}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -190,30 +242,39 @@ export default function Onboarding() {
           {/* Logo Section */}
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
-              <Image 
-                source={require('@/assets/logo.jpeg')} 
-                style={styles.logoImage} 
-                resizeMode="cover" 
+              <Image
+                source={require("@/assets/logo.jpeg")}
+                style={styles.logoImage}
+                resizeMode="cover"
               />
             </View>
             <Text style={styles.appName}>TinyCare</Text>
-            <Text style={styles.appTagline}>Vigilancia Pediátrica Inteligente</Text>
+            <Text style={styles.appTagline}>
+              Vigilancia Pediátrica Inteligente
+            </Text>
           </View>
 
           {step === 1 ? (
             /* Step 1: Welcome */
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <View style={[styles.iconBadge, { backgroundColor: TC.accent + '15' }]}>
+                <View
+                  style={[
+                    styles.iconBadge,
+                    { backgroundColor: TC.accent + "15" },
+                  ]}
+                >
                   <Ionicons name="sparkles" size={18} color={TC.accent} />
                 </View>
                 <Text style={styles.cardTitle}>¡Bienvenido!</Text>
               </View>
-              
+
               <Text style={styles.paragraph}>
-                El monitor inteligente para los más pequeños. Funciona sin conexión, protege tu privacidad y te acompaña sin obligarte a crear cuentas molestas.
+                El monitor inteligente para los más pequeños. Funciona sin
+                conexión, protege tu privacidad y te acompaña sin obligarte a
+                crear cuentas molestas.
               </Text>
-              
+
               <GradientButton
                 label="CONFIGURACIÓN RÁPIDA"
                 onPress={() => setStep(2)}
@@ -226,7 +287,8 @@ export default function Onboarding() {
               <View style={styles.step2Header}>
                 <Text style={styles.greeting}>¿A quién vamos a cuidar?</Text>
                 <Text style={styles.subtitle}>
-                  Necesitamos algunos datos iniciales para calibrar correctamente las alertas médicas de tus bebés.
+                  Necesitamos algunos datos iniciales para calibrar
+                  correctamente las alertas médicas de tus bebés.
                 </Text>
               </View>
 
@@ -235,7 +297,7 @@ export default function Onboarding() {
                   <View style={styles.bebeHeader}>
                     <Text style={styles.bebeLabel}>BEBÉ {index + 1}</Text>
                     {bebes.length > 1 && (
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         onPress={() => quitarBebe(bebe.id)}
                         style={styles.removeButton}
                       >
@@ -243,58 +305,57 @@ export default function Onboarding() {
                       </TouchableOpacity>
                     )}
                   </View>
-                  
-                  {/* Emoji Avatar Selector */}
+
+                  {/* Baby Avatar Selector */}
                   <TouchableOpacity
-                    onPress={() => setShowEmojiPickerId(showEmojiPickerId === bebe.id ? null : bebe.id)}
+                    onPress={() =>
+                      setShowAvatarPickerId(
+                        showAvatarPickerId === bebe.id ? null : bebe.id,
+                      )
+                    }
                     style={[
                       styles.emojiSelectorButton,
-                      showEmojiPickerId === bebe.id && { borderColor: TC.accent }
+                      showAvatarPickerId === bebe.id && {
+                        borderColor: TC.accent,
+                      },
                     ]}
                   >
-                    <View style={styles.emojiAvatarWrapper}>
-                      <Text style={{ fontSize: 28 }}>{bebe.avatar || '❤️'}</Text>
-                    </View>
+                    <BabyAvatar
+                      avatar={bebe.avatar}
+                      size={44}
+                      containerStyle={{ marginRight: 12 }}
+                    />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.emojiLabelTitle}>Icono del bebé</Text>
+                      <Text style={styles.emojiLabelTitle}>
+                        Avatar del bebé
+                      </Text>
                       <Text style={styles.emojiLabelSubtitle}>
-                        {showEmojiPickerId === bebe.id ? 'Selecciona un emoji' : 'Toca para cambiar'}
+                        {showAvatarPickerId === bebe.id
+                          ? "Selecciona una ilustración"
+                          : "Toca para cambiar avatar"}
                       </Text>
                     </View>
                     <Ionicons
-                      name={showEmojiPickerId === bebe.id ? 'chevron-up' : 'chevron-down'}
-                      size={20} 
+                      name={
+                        showAvatarPickerId === bebe.id
+                          ? "chevron-up"
+                          : "chevron-down"
+                      }
+                      size={20}
                       color={TC.textMuted}
                     />
                   </TouchableOpacity>
 
-                  {/* Emoji Dropdown list */}
-                  {showEmojiPickerId === bebe.id && (
-                    <View style={styles.emojiDropdown}>
-                      {EMOJI_CATEGORIES.map(cat => (
-                        <View key={cat.label} style={{ gap: 6 }}>
-                          <Text style={styles.emojiCategoryLabel}>
-                            {cat.label.toUpperCase()}
-                          </Text>
-                          <View style={styles.emojiGrid}>
-                            {cat.emojis.map(emoji => (
-                              <TouchableOpacity
-                                key={emoji}
-                                onPress={() => {
-                                  actualizarBebe(bebe.id, 'avatar', emoji);
-                                  setShowEmojiPickerId(null);
-                                }}
-                                style={[
-                                  styles.emojiItem,
-                                  bebe.avatar === emoji && styles.emojiItemActive
-                                ]}
-                              >
-                                <Text style={{ fontSize: 22 }}>{emoji}</Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        </View>
-                      ))}
+                  {/* Avatar Picker Dropdown */}
+                  {showAvatarPickerId === bebe.id && (
+                    <View style={{ marginTop: 8, marginBottom: 12 }}>
+                      <BabyAvatarSelector
+                        selectedAvatar={bebe.avatar}
+                        onSelectAvatar={(av) => {
+                          actualizarBebe(bebe.id, "avatar", av);
+                          setShowAvatarPickerId(null);
+                        }}
+                      />
                     </View>
                   )}
 
@@ -302,12 +363,14 @@ export default function Onboarding() {
                     icon="person-outline"
                     placeholder="Nombre o apodo"
                     value={bebe.nombre}
-                    onChangeText={(t) => actualizarBebe(bebe.id, 'nombre', t)}
+                    onChangeText={(t) => actualizarBebe(bebe.id, "nombre", t)}
                   />
 
                   <ComboDatePicker
                     value={bebe.fechaNacimiento}
-                    onChange={(t) => actualizarBebe(bebe.id, 'fechaNacimiento', t)}
+                    onChange={(t) =>
+                      actualizarBebe(bebe.id, "fechaNacimiento", t)
+                    }
                   />
 
                   <PillInput
@@ -315,27 +378,47 @@ export default function Onboarding() {
                     placeholder="Peso actual (kg)"
                     keyboardType="numeric"
                     value={bebe.peso}
-                    onChangeText={(t) => actualizarBebe(bebe.id, 'peso', t)}
+                    onChangeText={(t) => actualizarBebe(bebe.id, "peso", t)}
                   />
 
                   {/* Advanced Toggle */}
-                  <TouchableOpacity 
-                    style={styles.advancedToggle} 
-                    onPress={() => actualizarBebe(bebe.id, 'mostrarAvanzado', !bebe.mostrarAvanzado)}
+                  <TouchableOpacity
+                    style={styles.advancedToggle}
+                    onPress={() =>
+                      actualizarBebe(
+                        bebe.id,
+                        "mostrarAvanzado",
+                        !bebe.mostrarAvanzado,
+                      )
+                    }
                   >
-                    <Ionicons name={bebe.mostrarAvanzado ? "chevron-up" : "chevron-down"} size={18} color={TC.accent} />
-                    <Text style={styles.advancedText}>Condiciones Médicas (Opcional)</Text>
+                    <Ionicons
+                      name={
+                        bebe.mostrarAvanzado ? "chevron-up" : "chevron-down"
+                      }
+                      size={18}
+                      color={TC.accent}
+                    />
+                    <Text style={styles.advancedText}>
+                      Condiciones Médicas (Opcional)
+                    </Text>
                   </TouchableOpacity>
 
                   {bebe.mostrarAvanzado && (
                     <View style={styles.advancedSection}>
                       <View style={styles.switchCardRow}>
-                        <Text style={styles.switchLabel}>¿Nació prematuro?</Text>
-                        <Switch 
-                          value={bebe.esPrematuro} 
-                          onValueChange={(v) => actualizarBebe(bebe.id, 'esPrematuro', v)} 
-                          trackColor={{ true: TC.accent, false: '#CBD5E1' }}
-                          thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
+                        <Text style={styles.switchLabel}>
+                          ¿Nació prematuro?
+                        </Text>
+                        <Switch
+                          value={bebe.esPrematuro}
+                          onValueChange={(v) =>
+                            actualizarBebe(bebe.id, "esPrematuro", v)
+                          }
+                          trackColor={{ true: TC.accent, false: "#CBD5E1" }}
+                          thumbColor={
+                            Platform.OS === "android" ? "#FFF" : undefined
+                          }
                         />
                       </View>
 
@@ -345,27 +428,41 @@ export default function Onboarding() {
                           placeholder="Semanas de gestación"
                           keyboardType="numeric"
                           value={bebe.semanasGestacion}
-                          onChangeText={(t) => actualizarBebe(bebe.id, 'semanasGestacion', t)}
+                          onChangeText={(t) =>
+                            actualizarBebe(bebe.id, "semanasGestacion", t)
+                          }
                         />
                       )}
 
                       <View style={styles.switchCardRow}>
-                        <Text style={styles.switchLabel}>Riesgo de SDR respiratorio</Text>
-                        <Switch 
-                          value={bebe.riesgoSDR} 
-                          onValueChange={(v) => actualizarBebe(bebe.id, 'riesgoSDR', v)} 
-                          trackColor={{ true: TC.accent, false: '#CBD5E1' }}
-                          thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
+                        <Text style={styles.switchLabel}>
+                          Riesgo de SDR respiratorio
+                        </Text>
+                        <Switch
+                          value={bebe.riesgoSDR}
+                          onValueChange={(v) =>
+                            actualizarBebe(bebe.id, "riesgoSDR", v)
+                          }
+                          trackColor={{ true: TC.accent, false: "#CBD5E1" }}
+                          thumbColor={
+                            Platform.OS === "android" ? "#FFF" : undefined
+                          }
                         />
                       </View>
 
                       <View style={styles.switchCardRow}>
-                        <Text style={styles.switchLabel}>¿Otros padecimientos?</Text>
-                        <Switch 
-                          value={bebe.tieneComplicaciones} 
-                          onValueChange={(v) => actualizarBebe(bebe.id, 'tieneComplicaciones', v)} 
-                          trackColor={{ true: TC.accent, false: '#CBD5E1' }}
-                          thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
+                        <Text style={styles.switchLabel}>
+                          ¿Otros padecimientos?
+                        </Text>
+                        <Switch
+                          value={bebe.tieneComplicaciones}
+                          onValueChange={(v) =>
+                            actualizarBebe(bebe.id, "tieneComplicaciones", v)
+                          }
+                          trackColor={{ true: TC.accent, false: "#CBD5E1" }}
+                          thumbColor={
+                            Platform.OS === "android" ? "#FFF" : undefined
+                          }
                         />
                       </View>
 
@@ -374,7 +471,9 @@ export default function Onboarding() {
                           icon="medkit-outline"
                           placeholder="Describe el padecimiento..."
                           value={bebe.detallesComplicaciones}
-                          onChangeText={(t) => actualizarBebe(bebe.id, 'detallesComplicaciones', t)}
+                          onChangeText={(t) =>
+                            actualizarBebe(bebe.id, "detallesComplicaciones", t)
+                          }
                         />
                       )}
                     </View>
@@ -383,7 +482,11 @@ export default function Onboarding() {
               ))}
 
               <TouchableOpacity style={styles.addBtn} onPress={agregarBebe}>
-                <Ionicons name="add-circle-outline" size={20} color={TC.accent} />
+                <Ionicons
+                  name="add-circle-outline"
+                  size={20}
+                  color={TC.accent}
+                />
                 <Text style={styles.addText}>Añadir otro bebé</Text>
               </TouchableOpacity>
 
@@ -405,40 +508,42 @@ export default function Onboarding() {
       <Modal transparent visible={showSuccessModal} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            
             <View style={styles.modalIconWrapper}>
               <Ionicons name="sparkles" size={36} color={TC.accent} />
             </View>
 
-            <Text style={styles.modalTitle}>
-              ¡Casi listo!
-            </Text>
-            
+            <Text style={styles.modalTitle}>¡Casi listo!</Text>
+
             <Text style={styles.modalParagraph}>
-              Has creado el perfil básico de tu bebé. Para completar toda la información clínica, dirígete a la sección de <Text style={{fontWeight: '800', color: TC.textDark}}>Perfiles</Text> en la app.
+              Has creado el perfil básico de tu bebé. Para completar toda la
+              información clínica, dirígete a la sección de{" "}
+              <Text style={{ fontWeight: "800", color: TC.textDark }}>
+                Perfiles
+              </Text>{" "}
+              en la app.
             </Text>
 
             <View style={styles.modalTipContainer}>
-               <View style={styles.modalTipIcon}>
-                 <Ionicons name="person-circle" size={24} color={TC.accent} />
-               </View>
-               <Text style={styles.modalTipText}>
-                 Ahí podrás configurar sus apellidos, sexo y detalles adicionales para asegurar la precisión del sistema de monitoreo.
-               </Text>
+              <View style={styles.modalTipIcon}>
+                <Ionicons name="person-circle" size={24} color={TC.accent} />
+              </View>
+              <Text style={styles.modalTipText}>
+                Ahí podrás configurar sus apellidos, sexo y detalles adicionales
+                para asegurar la precisión del sistema de monitoreo.
+              </Text>
             </View>
 
             <GradientButton
               label="¡ENTENDIDO!"
               onPress={() => {
                 setShowSuccessModal(false);
-                router.replace('/(tabs)/home');
+                router.replace("/(tabs)/home");
               }}
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
             />
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
@@ -454,7 +559,7 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   logoSection: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
     marginBottom: 8,
   },
@@ -463,8 +568,8 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     backgroundColor: TC.card,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
@@ -472,7 +577,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 20,
     elevation: 6,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   logoImage: {
     width: 130,
@@ -481,24 +586,24 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: "900",
     color: TC.textDark,
     letterSpacing: -0.6,
     marginTop: 16,
   },
   appTagline: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.accent,
     letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginTop: 4,
   },
   card: {
     backgroundColor: TC.card,
     borderRadius: 32,
     padding: 24,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
@@ -508,8 +613,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     marginBottom: 16,
   },
@@ -517,13 +622,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderCurve: 'continuous' as any,
+    alignItems: "center",
+    justifyContent: "center",
+    borderCurve: "continuous" as any,
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.textDark,
     letterSpacing: -0.4,
   },
@@ -531,33 +636,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: TC.textBody,
     lineHeight: 24,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 24,
   },
   step2Header: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 8,
   },
   greeting: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.textDark,
     letterSpacing: -0.4,
     marginBottom: 6,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
     color: TC.textBody,
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: "center",
     paddingHorizontal: 16,
   },
   bebeCard: {
     backgroundColor: TC.card,
     borderRadius: 32,
     padding: 24,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
     borderWidth: 1,
     borderColor: TC.inputBorder,
     shadowColor: TC.textDark,
@@ -568,9 +673,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   bebeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: TC.inputBorder,
     paddingBottom: 14,
@@ -578,7 +683,7 @@ const styles = StyleSheet.create({
   },
   bebeLabel: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.accent,
     letterSpacing: 1.2,
   },
@@ -587,14 +692,14 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: TC.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: TC.inputBorder,
   },
   emojiSelectorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 16,
     backgroundColor: TC.inputBg,
     borderRadius: 20,
@@ -609,11 +714,11 @@ const styles = StyleSheet.create({
     backgroundColor: TC.card,
     borderWidth: 2,
     borderColor: TC.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   emojiLabelTitle: {
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textDark,
     fontSize: 14,
   },
@@ -633,32 +738,32 @@ const styles = StyleSheet.create({
   emojiCategoryLabel: {
     fontSize: 11,
     color: TC.textMuted,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 0.8,
     marginBottom: 6,
   },
   emojiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   emojiItem: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
     backgroundColor: TC.card,
     borderColor: TC.inputBorder,
   },
   emojiItemActive: {
     borderColor: TC.accent,
-    backgroundColor: TC.accent + '10',
+    backgroundColor: TC.accent + "10",
   },
   advancedToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     paddingVertical: 12,
     marginTop: 4,
@@ -669,16 +774,16 @@ const styles = StyleSheet.create({
   advancedText: {
     fontSize: 14,
     color: TC.accent,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   advancedSection: {
     gap: 16,
     paddingTop: 4,
   },
   switchCardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: TC.inputBg,
     borderRadius: 20,
     paddingVertical: 12,
@@ -689,19 +794,19 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: 14,
     color: TC.textBody,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     padding: 16,
     backgroundColor: TC.card,
     borderRadius: 24,
     borderWidth: 2,
     borderColor: TC.accent,
-    borderStyle: 'dashed',
+    borderStyle: "dashed",
     shadowColor: TC.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -710,36 +815,36 @@ const styles = StyleSheet.create({
   },
   addText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.accent,
   },
   mainBtn: {
-    width: '100%',
+    width: "100%",
   },
   footer: {
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     color: TC.textMuted,
     letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginTop: 'auto',
+    textTransform: "uppercase",
+    marginTop: "auto",
     paddingVertical: 20,
     paddingHorizontal: 28,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(61,44,46,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(61,44,46,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
     padding: 24,
   },
   modalCard: {
     backgroundColor: TC.card,
     borderRadius: 32,
     padding: 32,
-    width: '100%',
-    alignItems: 'center',
+    width: "100%",
+    alignItems: "center",
     shadowColor: TC.textDark,
     shadowOpacity: 0.08,
     shadowRadius: 20,
@@ -751,23 +856,23 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 24,
-    backgroundColor: TC.accent + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: TC.accent + "15",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 20,
-    borderCurve: 'continuous' as any,
+    borderCurve: "continuous" as any,
   },
   modalTitle: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: "800",
     color: TC.textDark,
     marginBottom: 12,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalParagraph: {
     fontSize: 15,
     color: TC.textBody,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 22,
     marginBottom: 24,
   },
@@ -775,10 +880,10 @@ const styles = StyleSheet.create({
     backgroundColor: TC.inputBg,
     borderRadius: 20,
     padding: 16,
-    width: '100%',
+    width: "100%",
     marginBottom: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: TC.inputBorder,
     gap: 12,
@@ -799,6 +904,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: TC.textBody,
     lineHeight: 18,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 });

@@ -3,24 +3,25 @@ import * as MailComposer from "expo-mail-composer";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BabyAvatar } from "../components/BabyAvatar";
 import { TC } from "../components/theme";
 import { database } from "../src/database";
 import {
-  AlertaMedica,
-  DatosPersonales,
-  Dispositivo,
-  Emergencia,
-  Perfil,
-  SaludContexto,
+    AlertaMedica,
+    DatosPersonales,
+    Dispositivo,
+    Emergencia,
+    Perfil,
+    SaludContexto,
 } from "../src/database/models";
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -40,7 +41,11 @@ function calcEdad(fechaMs: number): string {
 
 function formatFecha(ms: number): string {
   const d = new Date(ms);
-  return d.toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" });
+  return d.toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 // ─── Section Component ────────────────────────────────────────────────────────
@@ -67,10 +72,25 @@ const ReportSection = ({
   </View>
 );
 
-const DataRow = ({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) => (
+const DataRow = ({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) => (
   <View style={rs.dataRow}>
     <Text style={rs.dataLabel}>{label}</Text>
-    <Text style={[rs.dataValue, highlight && { color: TC.accent, fontWeight: "800" }]}>{value}</Text>
+    <Text
+      style={[
+        rs.dataValue,
+        highlight && { color: TC.accent, fontWeight: "800" },
+      ]}
+    >
+      {value}
+    </Text>
   </View>
 );
 
@@ -104,23 +124,38 @@ export default function DoctorReportScreen() {
       const p = await database.get<Perfil>("perfiles").find(perfilId);
       setPerfil(p);
 
-      const dpAll = await database.get<DatosPersonales>("datos_personales").query().fetch();
+      const dpAll = await database
+        .get<DatosPersonales>("datos_personales")
+        .query()
+        .fetch();
       setDatos(dpAll.find((r) => r.idPerfil === perfilId) || null);
 
-      const scAll = await database.get<SaludContexto>("salud_contexto").query().fetch();
+      const scAll = await database
+        .get<SaludContexto>("salud_contexto")
+        .query()
+        .fetch();
       setSalud(scAll.find((r) => r.idPerfil === perfilId) || null);
 
-      const al = await database.get<AlertaMedica>("alertas_medicas").query().fetch();
+      const al = await database
+        .get<AlertaMedica>("alertas_medicas")
+        .query()
+        .fetch();
       const recent = al
         .filter((a) => a.idPerfil === perfilId)
         .sort((a, b) => b.timestampEvento - a.timestampEvento)
         .slice(0, 8);
       setAlertas(recent);
 
-      const emAll = await database.get<Emergencia>("emergencias").query().fetch();
+      const emAll = await database
+        .get<Emergencia>("emergencias")
+        .query()
+        .fetch();
       setEmergencias(emAll.filter((e) => e.idPerfil === perfilId));
 
-      const devAll = await database.get<Dispositivo>("dispositivos").query().fetch();
+      const devAll = await database
+        .get<Dispositivo>("dispositivos")
+        .query()
+        .fetch();
       setDispositivo(devAll.find((d) => d.idPerfil === perfilId) || null);
 
       setLoading(false);
@@ -165,7 +200,7 @@ export default function DoctorReportScreen() {
         ? alertas
             .map(
               (a) =>
-                `  • [${a.nivel}] ${a.tipoAlerta}: ${a.valorRegistrado} — ${formatFecha(a.timestampEvento)}`
+                `  • [${a.nivel}] ${a.tipoAlerta}: ${a.valorRegistrado} — ${formatFecha(a.timestampEvento)}`,
             )
             .join("\n")
         : "  Sin alertas recientes registradas.";
@@ -241,17 +276,16 @@ TinyCare — InnovaTecNM © 2026
     if (!isAvailable) {
       Alert.alert(
         "Sin cliente de correo",
-        "No se encontró una aplicación de correo configurada en este dispositivo. Configura una cuenta de correo e intenta de nuevo."
+        "No se encontró una aplicación de correo configurada en este dispositivo. Configura una cuenta de correo e intenta de nuevo.",
       );
       return;
     }
 
     setSending(true);
     const reportText = buildReportText();
-    const nombreBebe =
-      datos
-        ? `${datos.primerNombre || ""} ${datos.apellidoPaterno || ""}`.trim()
-        : perfil?.nombreIdentificador || "Paciente";
+    const nombreBebe = datos
+      ? `${datos.primerNombre || ""} ${datos.apellidoPaterno || ""}`.trim()
+      : perfil?.nombreIdentificador || "Paciente";
 
     try {
       const result = await MailComposer.composeAsync({
@@ -274,7 +308,9 @@ TinyCare — InnovaTecNM © 2026
   // ── Render ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={[rs.root, { justifyContent: "center", alignItems: "center" }]}>
+      <View
+        style={[rs.root, { justifyContent: "center", alignItems: "center" }]}
+      >
         <ActivityIndicator size="large" color={TC.accent} />
         <Text style={{ marginTop: 12, color: TC.textMuted, fontWeight: "600" }}>
           Generando reporte...
@@ -319,12 +355,18 @@ TinyCare — InnovaTecNM © 2026
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={rs.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={rs.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         {/* ── Patient Summary Card ── */}
         <View style={rs.summaryCard}>
-          <View style={rs.summaryAvatarBox}>
-            <Text style={rs.summaryAvatar}>{perfil?.avatar || "👶"}</Text>
-          </View>
+          <BabyAvatar
+            avatar={perfil?.avatar}
+            name={perfil?.nombreIdentificador}
+            size={48}
+            containerStyle={{ marginRight: 12 }}
+          />
           <View style={{ flex: 1 }}>
             <Text style={rs.summaryName}>{nombreCompleto}</Text>
             <Text style={rs.summaryAge}>Edad: {edadStr}</Text>
@@ -341,18 +383,32 @@ TinyCare — InnovaTecNM © 2026
 
         {/* ── Alert Summary ── */}
         {alertasCriticas.length > 0 && (
-          <View style={[rs.alertBanner, { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" }]}>
+          <View
+            style={[
+              rs.alertBanner,
+              { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" },
+            ]}
+          >
             <Ionicons name="warning" size={18} color="#EF4444" />
             <Text style={[rs.alertBannerText, { color: "#B91C1C" }]}>
-              {alertasCriticas.length} alerta{alertasCriticas.length > 1 ? "s" : ""} crítica{alertasCriticas.length > 1 ? "s" : ""} en las últimas 24h
+              {alertasCriticas.length} alerta
+              {alertasCriticas.length > 1 ? "s" : ""} crítica
+              {alertasCriticas.length > 1 ? "s" : ""} en las últimas 24h
             </Text>
           </View>
         )}
         {alertasAdvertencia.length > 0 && alertasCriticas.length === 0 && (
-          <View style={[rs.alertBanner, { backgroundColor: "#FEF3C7", borderColor: "#FCD34D" }]}>
+          <View
+            style={[
+              rs.alertBanner,
+              { backgroundColor: "#FEF3C7", borderColor: "#FCD34D" },
+            ]}
+          >
             <Ionicons name="alert-circle" size={18} color="#D97706" />
             <Text style={[rs.alertBannerText, { color: "#92400E" }]}>
-              {alertasAdvertencia.length} advertencia{alertasAdvertencia.length > 1 ? "s" : ""} reciente{alertasAdvertencia.length > 1 ? "s" : ""}
+              {alertasAdvertencia.length} advertencia
+              {alertasAdvertencia.length > 1 ? "s" : ""} reciente
+              {alertasAdvertencia.length > 1 ? "s" : ""}
             </Text>
           </View>
         )}
@@ -363,25 +419,50 @@ TinyCare — InnovaTecNM © 2026
           <DataRow label="Sexo" value={datos?.sexo || "No especificado"} />
           <DataRow
             label="Fecha de nacimiento"
-            value={datos?.fechaNacimiento ? formatFecha(datos.fechaNacimiento) : "No registrada"}
+            value={
+              datos?.fechaNacimiento
+                ? formatFecha(datos.fechaNacimiento)
+                : "No registrada"
+            }
           />
           <DataRow label="Edad" value={edadStr} highlight />
         </ReportSection>
 
-        <ReportSection icon="fitness" title="Datos Clínicos" color={TC.vitalOxygen}>
+        <ReportSection
+          icon="fitness"
+          title="Datos Clínicos"
+          color={TC.vitalOxygen}
+        >
           <DataRow
             label="Grupo sanguíneo"
-            value={salud?.grupoSanguineo ? `${salud.grupoSanguineo} ${salud.factorRh || ""}` : "No registrado"}
+            value={
+              salud?.grupoSanguineo
+                ? `${salud.grupoSanguineo} ${salud.factorRh || ""}`
+                : "No registrado"
+            }
           />
-          <DataRow label="Peso" value={salud?.pesoKg ? `${salud.pesoKg} kg` : "No registrado"} />
-          <DataRow label="Talla" value={salud?.tallaCm ? `${salud.tallaCm} cm` : "No registrada"} />
+          <DataRow
+            label="Peso"
+            value={salud?.pesoKg ? `${salud.pesoKg} kg` : "No registrado"}
+          />
+          <DataRow
+            label="Talla"
+            value={salud?.tallaCm ? `${salud.tallaCm} cm` : "No registrada"}
+          />
           <DataRow label="Prematuro" value={salud?.esPrematuro ? "Sí" : "No"} />
           {salud?.esPrematuro && salud?.edadGestacionalSemanas ? (
-            <DataRow label="Ed. gestacional" value={`${salud.edadGestacionalSemanas} semanas`} />
+            <DataRow
+              label="Ed. gestacional"
+              value={`${salud.edadGestacionalSemanas} semanas`}
+            />
           ) : null}
         </ReportSection>
 
-        <ReportSection icon="medkit" title="Antecedentes Médicos" color={TC.vitalTemp}>
+        <ReportSection
+          icon="medkit"
+          title="Antecedentes Médicos"
+          color={TC.vitalTemp}
+        >
           <DataRow
             label="Alergias"
             value={salud?.tieneAlergias ? "Sí" : "No"}
@@ -402,18 +483,31 @@ TinyCare — InnovaTecNM © 2026
               <Text style={rs.detailText}>{salud.detallesComplicaciones}</Text>
             </View>
           ) : null}
-          <DataRow label="Alto riesgo SDR" value={salud?.altoRiesgoSdr ? "Sí" : "No"} />
-          <DataRow label="Sosp. cardiopatía" value={salud?.sospechaCardiopatia ? "Sí" : "No"} />
+          <DataRow
+            label="Alto riesgo SDR"
+            value={salud?.altoRiesgoSdr ? "Sí" : "No"}
+          />
+          <DataRow
+            label="Sosp. cardiopatía"
+            value={salud?.sospechaCardiopatia ? "Sí" : "No"}
+          />
         </ReportSection>
 
-        <ReportSection icon="notifications" title="Alertas Recientes" color={TC.vitalHeart}>
+        <ReportSection
+          icon="notifications"
+          title="Alertas Recientes"
+          color={TC.vitalHeart}
+        >
           {alertas.length === 0 ? (
             <Text style={rs.emptyText}>Sin alertas registradas.</Text>
           ) : (
             alertas.map((a, i) => (
               <View
                 key={a.id}
-                style={[rs.alertRow, i < alertas.length - 1 && rs.alertRowBorder]}
+                style={[
+                  rs.alertRow,
+                  i < alertas.length - 1 && rs.alertRowBorder,
+                ]}
               >
                 <View
                   style={[
@@ -423,8 +517,8 @@ TinyCare — InnovaTecNM © 2026
                         a.nivel === "Critico"
                           ? "#EF4444"
                           : a.nivel === "Advertencia"
-                          ? "#F59E0B"
-                          : TC.accent,
+                            ? "#F59E0B"
+                            : TC.accent,
                     },
                   ]}
                 />
@@ -432,7 +526,9 @@ TinyCare — InnovaTecNM © 2026
                   <Text style={rs.alertType}>{a.tipoAlerta}</Text>
                   <Text style={rs.alertVal}>{a.valorRegistrado}</Text>
                 </View>
-                <Text style={rs.alertDate}>{formatFecha(a.timestampEvento)}</Text>
+                <Text style={rs.alertDate}>
+                  {formatFecha(a.timestampEvento)}
+                </Text>
               </View>
             ))
           )}
@@ -442,7 +538,10 @@ TinyCare — InnovaTecNM © 2026
           {dispositivo ? (
             <>
               <DataRow label="Nombre" value={dispositivo.nombre} />
-              <DataRow label="ID Hardware" value={dispositivo.identificadorHardware} />
+              <DataRow
+                label="ID Hardware"
+                value={dispositivo.identificadorHardware}
+              />
               <DataRow label="Estado" value={dispositivo.estado} />
             </>
           ) : (
@@ -469,10 +568,14 @@ TinyCare — InnovaTecNM © 2026
 
         {/* ── Legal Notice ── */}
         <View style={rs.legal}>
-          <Ionicons name="information-circle-outline" size={16} color={TC.textMuted} />
+          <Ionicons
+            name="information-circle-outline"
+            size={16}
+            color={TC.textMuted}
+          />
           <Text style={rs.legalText}>
-            Este reporte es generado por TinyCare y es de carácter referencial. Los datos deben ser
-            interpretados por un profesional de la salud.
+            Este reporte es generado por TinyCare y es de carácter referencial.
+            Los datos deben ser interpretados por un profesional de la salud.
           </Text>
         </View>
       </ScrollView>

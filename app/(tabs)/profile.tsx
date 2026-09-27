@@ -12,6 +12,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BabyAvatar } from "../../components/BabyAvatar";
 import {
     getScreenTopPadding,
     SharedStyles,
@@ -137,7 +138,7 @@ export default function ProfileScreen() {
   const { isSyncing } = useSync();
 
   const [babies, setBabies] = useState<
-    { id: string; name: string; emoji: string }[]
+    { id: string; name: string; avatar: string }[]
   >([]);
   const [pairedDevices, setPairedDevices] = useState<Dispositivo[]>([]);
   const [cuidadores, setCuidadores] = useState<Cuidador[]>([]);
@@ -158,7 +159,7 @@ export default function ProfileScreen() {
             perfiles.map((p) => ({
               id: p.id,
               name: p.nombreIdentificador || "Bebé",
-              emoji: p.avatar || "👶🏻",
+              avatar: p.avatar || "b-bear",
             })),
           );
         });
@@ -294,9 +295,12 @@ export default function ProfileScreen() {
                     })
                   }
                 >
-                  <View style={styles.babyEmojiBox}>
-                    <Text style={styles.babyEmoji}>{b.emoji}</Text>
-                  </View>
+                  <BabyAvatar
+                    avatar={b.avatar}
+                    name={b.name}
+                    size={48}
+                    containerStyle={{ marginBottom: 8 }}
+                  />
                   <Text style={styles.babyName} numberOfLines={1}>
                     {b.name}
                   </Text>
