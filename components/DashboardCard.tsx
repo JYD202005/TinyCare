@@ -3,11 +3,13 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     Animated,
     Easing,
+    StyleProp,
     StyleSheet,
     Text,
     TouchableOpacity,
     useWindowDimensions,
     View,
+    ViewStyle,
 } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
 import { TC } from "./theme";
@@ -33,6 +35,7 @@ export interface DashboardCardProps {
   liveData?: VitalConfig[];
   averages?: any;
   alertsCount?: number;
+  style?: StyleProp<ViewStyle>;
 }
 
 // ─── Value Generators ────────────────────────────────────────────────────────
@@ -549,6 +552,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   liveData,
   averages,
   alertsCount = 0,
+  style,
 }) => {
   const [liveVitals, setLiveVitals] = useState<VitalConfig[]>(
     liveData || getEmptyVitals(),
@@ -677,6 +681,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
           transform: [{ scale: cardScale }],
           opacity: cardOpacity,
         },
+        style,
       ]}
     >
       {/* Live indicator */}
@@ -767,7 +772,10 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 const cardStyles = StyleSheet.create({
   card: {
     backgroundColor: TC.card,
-    borderRadius: 28,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 14,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     paddingTop: 14,
     paddingBottom: 16,
     paddingHorizontal: 12,

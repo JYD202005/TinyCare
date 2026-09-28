@@ -1,33 +1,43 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Alert,
-    LayoutAnimation,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    UIManager,
-    View,
+  Alert,
+  LayoutAnimation,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  UIManager,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, Line, LinearGradient, Path, Stop } from "react-native-svg";
-import { BabyAvatar } from "../../components/BabyAvatar";
+import { getBabyGender } from "../../components/BabyAvatar";
 import DashboardCard, {
-    VITALS,
-    VitalType,
+  VITALS,
+  VitalType,
 } from "../../components/DashboardCard";
 import {
-    getScreenTopPadding,
-    SharedStyles,
-    Typography,
+  BabyTabItem,
+  DraggableProfileTabs,
+} from "../../components/DraggableProfileTabs";
+import { StatusNoticeModal } from "../../components/StatusNoticeModal";
+import {
+  getScreenTopPadding,
+  SharedStyles,
+  Typography,
 } from "../../components/styles";
 import { TC } from "../../components/theme";
 import { database } from "../../src/database";
-import { Dispositivo, Perfil } from "../../src/database/models";
+import {
+  DatosPersonales,
+  Dispositivo,
+  Perfil,
+} from "../../src/database/models";
 import { useSync } from "../../src/hooks/useSync";
 import { useTelemetryStats } from "../../src/hooks/useTelemetryStats";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -172,19 +182,12 @@ const HistoryCard: React.FC<{
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [babies, setBabies] = useState<
-    {
-      id: string;
-      name: string;
-      avatar: string;
-      connected: boolean;
-      deviceId: string | null;
-    }[]
-  >([
+  const [babies, setBabies] = useState<BabyTabItem[]>([
     {
       id: "loading",
       name: "Cargando...",
       avatar: "b-bear",
+      gender: "boy",
       connected: false,
       deviceId: null,
     },
@@ -196,6 +199,21 @@ export default function HomeScreen() {
   const vitalConfig = VITALS.find((v) => v.key === activeVital)!;
   const { session } = useAuth();
   const { isSyncing, lastSync } = useSync();
+  const [activeNoticeModal, setActiveNoticeModal] = useState<
+    "cloud" | "bluetooth" | null
+  >(null);
+
+  const handleNoticeAction = (
+    target: "login" | "profile" | "sensor-management",
+  ) => {
+    if (target === "login") {
+      router.push("/login");
+    } else if (target === "profile") {
+      router.push("/(tabs)/profile");
+    } else if (target === "sensor-management") {
+      router.push("/sensor-management");
+    }
+  };
 
   // Re-suscribirse cada vez que la pantalla recibe foco
   // Esto garantiza que cualquier cambio en edit-baby se refleje al regresar
@@ -204,6 +222,8 @@ export default function HomeScreen() {
       const perfilesCollection = database.collections.get<Perfil>("perfiles");
       const dispositivosCollection =
         database.collections.get<Dispositivo>("dispositivos");
+      const datosPersonalesCollection =
+        database.collections.get<DatosPersonales>("datos_personales");
 
       const subscription = perfilesCollection
         .query()
@@ -211,25 +231,64 @@ export default function HomeScreen() {
         .subscribe(async (perfiles) => {
           if (perfiles.length > 0) {
             const allDevices = await dispositivosCollection.query().fetch();
+            const allDatosPersonales = await datosPersonalesCollection
+              .query()
+              .fetch();
 
-            const loadedBabies = perfiles.map((p) => {
+            const loadedBabies: BabyTabItem[] = perfiles.map((p) => {
               const hasDevice = allDevices.find((d) => d.idPerfil === p.id);
+              const dp = allDatosPersonales.find((d) => d.idPerfil === p.id);
+              const gender = getBabyGender(p.avatar, dp?.sexo);
               return {
                 id: p.id,
                 name: p.nombreIdentificador || "Bebé",
-                avatar: p.avatar || "b-bear",
+                avatar: p.avatar || (gender === "girl" ? "g-bun" : "b-bear"),
+                gender,
                 connected: hasDevice ? hasDevice.estado === "activo" : false,
                 deviceId: hasDevice ? hasDevice.identificadorHardware : null,
               };
             });
+
+            // Respetar orden guardado por el usuario mediante arrastre
+            const storedOrderStr = await AsyncStorage.getItem(
+              "@baby_profiles_order",
+            );
+            if (storedOrderStr) {
+              try {
+                const storedOrder = JSON.parse(storedOrderStr) as string[];
+                loadedBabies.sort((a, b) => {
+                  const idxA = storedOrder.indexOf(a.id);
+                  const idxB = storedOrder.indexOf(b.id);
+                  if (idxA === -1 && idxB === -1) return 0;
+                  if (idxA === -1) return 1;
+                  if (idxB === -1) return -1;
+                  return idxA - idxB;
+                });
+              } catch {
+                // ignorar
+              }
+            }
+
             setBabies(loadedBabies);
-            setActiveBabyIndex(0);
+
+            // Mantener perfil seleccionado o restaurar desde almacenamiento local
+            const storedActive = await AsyncStorage.getItem("@active_baby_id");
+            setActiveBabyIndex((prev) => {
+              if (storedActive) {
+                const foundIndex = loadedBabies.findIndex(
+                  (b) => b.id === storedActive,
+                );
+                if (foundIndex !== -1) return foundIndex;
+              }
+              return prev >= loadedBabies.length ? 0 : prev;
+            });
           } else {
             setBabies([
               {
                 id: "empty",
                 name: "Sin Perfil",
                 avatar: "b-bear",
+                gender: "boy",
                 connected: false,
                 deviceId: null,
               },
@@ -240,6 +299,47 @@ export default function HomeScreen() {
       // Cleanup al perder foco o desmontar
       return () => subscription.unsubscribe();
     }, []),
+  );
+
+  const handleSelectBaby = useCallback(
+    (index: number) => {
+      if (index === activeBabyIndex) return; // Regla: exactamente un perfil activo en todo momento
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setActiveBabyIndex(index);
+      const selected = babies[index];
+      if (
+        selected?.id &&
+        selected.id !== "loading" &&
+        selected.id !== "empty"
+      ) {
+        AsyncStorage.setItem("@active_baby_id", selected.id).catch(() => {});
+      }
+    },
+    [activeBabyIndex, babies],
+  );
+
+  const handleReorderBabies = useCallback(
+    (newBabies: BabyTabItem[], newActiveIndex?: number) => {
+      setBabies(newBabies);
+      if (typeof newActiveIndex === "number") {
+        setActiveBabyIndex(newActiveIndex);
+      } else {
+        const currentActiveId = babies[activeBabyIndex]?.id;
+        if (currentActiveId) {
+          const found = newBabies.findIndex((b) => b.id === currentActiveId);
+          if (found !== -1) setActiveBabyIndex(found);
+        }
+      }
+
+      // Persistir nuevo orden en almacenamiento local
+      const ids = newBabies
+        .map((b) => b.id)
+        .filter((id) => id !== "loading" && id !== "empty");
+      AsyncStorage.setItem("@baby_profiles_order", JSON.stringify(ids)).catch(
+        () => {},
+      );
+    },
+    [activeBabyIndex, babies],
   );
 
   const [liveData, setLiveData] = useState<Record<string, any>>({});
@@ -385,151 +485,84 @@ export default function HomeScreen() {
             <Text style={Typography.eyebrow}>HOLA DE NUEVO,</Text>
             <Text style={Typography.screenTitle}>Panel de Salud</Text>
           </View>
+
+          {/* ── Status Action Icons (Cloud & Bluetooth) ── */}
+          <View style={styles.headerStatusIcons}>
+            {/* Cloud Icon */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              style={[
+                styles.headerIconBtn,
+                !session
+                  ? styles.headerIconBtnWarning
+                  : styles.headerIconBtnConnected,
+              ]}
+              onPress={() => setActiveNoticeModal("cloud")}
+              accessibilityLabel={
+                !session ? "Aviso de nube: Modo Local" : "Nube conectada"
+              }
+            >
+              <Ionicons
+                name={!session ? "cloud-offline" : "cloud-done"}
+                size={18}
+                color={!session ? "#64748B" : TC.accent}
+              />
+              {!session && <View style={styles.headerBadgePending} />}
+            </TouchableOpacity>
+
+            {/* Bluetooth Icon */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              style={[
+                styles.headerIconBtn,
+                !activeBaby.connected && activeBaby.name !== "Sazed"
+                  ? styles.headerIconBtnAlert
+                  : styles.headerIconBtnConnected,
+              ]}
+              onPress={() => setActiveNoticeModal("bluetooth")}
+              accessibilityLabel={
+                !activeBaby.connected && activeBaby.name !== "Sazed"
+                  ? "Aviso de Bluetooth: Sensor desconectado"
+                  : "Sensor Bluetooth conectado"
+              }
+            >
+              <Ionicons
+                name="bluetooth"
+                size={18}
+                color={
+                  !activeBaby.connected && activeBaby.name !== "Sazed"
+                    ? TC.vitalHeart
+                    : TC.accent
+                }
+              />
+              {!activeBaby.connected && activeBaby.name !== "Sazed" && (
+                <View style={styles.headerBadgePendingAlert} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* ── Profiles Selector ── */}
-        <View style={styles.profilesWrapper}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.profilesContainer}
-          >
-            {babies.map((b, index) => {
-              const isActive = index === activeBabyIndex;
-              return (
-                <TouchableOpacity
-                  key={index}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    LayoutAnimation.configureNext(
-                      LayoutAnimation.Presets.easeInEaseOut,
-                    );
-                    setActiveBabyIndex(index);
-                  }}
-                  style={[
-                    styles.profilePill,
-                    isActive && styles.profilePillActive,
-                  ]}
-                >
-                  <BabyAvatar
-                    avatar={b.avatar}
-                    name={b.name}
-                    size={36}
-                    containerStyle={{ marginRight: 8 }}
-                  />
-                  <View style={styles.profileInfo}>
-                    <Text
-                      style={[
-                        styles.profileName,
-                        isActive && styles.profileNameActive,
-                      ]}
-                    >
-                      {b.name}
-                    </Text>
-                    {isActive && (
-                      <Text style={styles.profileStatus}>Monitoreando</Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => router.push("/(tabs)/profile")}
-              style={styles.profileAddBtn}
-            >
-              <View style={styles.profileAddIcon}>
-                <Ionicons name="add" size={24} color={TC.vitalHeart} />
-              </View>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
-        {/* ── Cloud Sync Banner ── */}
-        {!session ? (
-          <View style={styles.cloudBanner}>
-            <View style={styles.cloudIconBox}>
-              <Ionicons name="cloud-offline" size={18} color={TC.textMuted} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bannerTitle}>Modo Local Activo</Text>
-              <Text style={styles.bannerSub} numberOfLines={1}>
-                Datos solo en este dispositivo
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => router.push("/login")}
-              style={styles.bannerActionBtn}
-            >
-              <Text style={styles.bannerActionText}>Iniciar Sesión</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.cloudBanner}>
-            <View style={styles.cloudIconBox}>
-              <Ionicons name="cloud-done" size={18} color={TC.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bannerTitle}>
-                Nube Activa {isSyncing && " (Sinc...)"}
-              </Text>
-              <Text style={styles.bannerSub} numberOfLines={1}>
-                {session.user?.email || "Conectado"}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* ── Bluetooth Banner ── */}
-        {!activeBaby.connected && activeBaby.name !== "Sazed" ? (
-          <View style={styles.bleBannerDisconnected}>
-            <View style={styles.bleIconBoxDisconnected}>
-              <Ionicons name="bluetooth" size={18} color="#FFF" />
-            </View>
-            <View style={styles.bleTextCol}>
-              <Text style={styles.bleTitle}>Sensor Desconectado</Text>
-              <Text style={styles.bleSub} numberOfLines={1}>
-                Vincular monitor para {activeBaby.name}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.bleBtn}
-              activeOpacity={0.8}
-              onPress={() => router.push("/sensor-management")}
-            >
-              <Text style={styles.bleBtnText}>Vincular</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.bleBannerConnected}>
-            <View style={styles.bleIconBoxConnected}>
-              <Ionicons name="bluetooth" size={18} color={TC.vitalHeart} />
-            </View>
-            <View style={styles.bleTextCol}>
-              <Text style={styles.bleTitleConnected}>Monitor Conectado</Text>
-              <Text style={styles.bleSub} numberOfLines={1}>
-                Recibiendo datos de {activeBaby.name}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.bleBtnOutline}
-              activeOpacity={0.8}
-              onPress={() => router.push("/sensor-management")}
-            >
-              <Text style={styles.bleBtnOutlineText}>Ajustes</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Dashboard Card (ring + inline stats) ── */}
-        <View style={styles.mainCardContainer}>
-          <DashboardCard
-            activeVital={activeVital}
-            onVitalChange={setActiveVital}
-            liveData={activeBabyVitals}
-            averages={averages24H}
-            alertsCount={alertsToday}
+        {/* ── Main Panel with Archivero Profile Tabs directly above it ── */}
+        <View style={styles.dashboardSectionWrapper}>
+          {/* ── Profiles Selector (Pestañas de Archivero con Arrastre Táctil) ── */}
+          <DraggableProfileTabs
+            babies={babies}
+            activeBabyIndex={activeBabyIndex}
+            onSelectBaby={handleSelectBaby}
+            onReorderBabies={handleReorderBabies}
+            onAddPress={() => router.push("/(tabs)/profile")}
           />
+
+          {/* ── Dashboard Card (ring + inline stats) ── */}
+          <View style={styles.mainCardContainer}>
+            <DashboardCard
+              activeVital={activeVital}
+              onVitalChange={setActiveVital}
+              liveData={activeBabyVitals}
+              averages={averages24H}
+              alertsCount={alertsToday}
+            />
+          </View>
         </View>
 
         {/* ── Info Cards ── */}
@@ -554,6 +587,17 @@ export default function HomeScreen() {
           history={getHistoryData(activeVital)}
         />
       </ScrollView>
+
+      <StatusNoticeModal
+        visible={activeNoticeModal !== null}
+        type={activeNoticeModal}
+        session={session}
+        activeBaby={activeBaby}
+        isSyncing={isSyncing}
+        lastSync={lastSync}
+        onClose={() => setActiveNoticeModal(null)}
+        onAction={handleNoticeAction}
+      />
     </View>
   );
 }
@@ -585,94 +629,11 @@ const styles = StyleSheet.create({
   headerLeft: {
     flex: 1,
   },
-  profilesWrapper: {
-    marginHorizontal: -16,
-    marginBottom: 2,
-    marginTop: -4,
+  dashboardSectionWrapper: {
+    width: "100%",
+    marginTop: 2,
   },
-  profilesContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    gap: 10,
-  },
-  profilePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: TC.card,
-    padding: 5,
-    paddingRight: 14,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: TC.inputBorder,
-    shadowColor: TC.textDark,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
-    height: 50,
-  },
-  profilePillActive: {
-    backgroundColor: TC.vitalHeart,
-    borderColor: TC.vitalHeart,
-    shadowColor: TC.vitalHeart,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  profileEmojiBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: TC.trackBg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-  profileEmojiBoxActive: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-  },
-  profileEmoji: {
-    fontSize: 18,
-  },
-  profileInfo: {
-    justifyContent: "center",
-  },
-  profileName: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: TC.textDark,
-    letterSpacing: -0.3,
-  },
-  profileNameActive: {
-    color: "#FFF",
-  },
-  profileStatus: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.85)",
-    marginTop: 1,
-  },
-  profileAddBtn: {
-    justifyContent: "center",
-    alignItems: "center",
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: TC.card,
-    borderWidth: 1.5,
-    borderColor: TC.inputBorder,
-    borderStyle: "dashed",
-    marginLeft: 2,
-  },
-  profileAddIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: TC.bg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+
   babyName: {
     fontSize: 11,
     fontWeight: "700",
@@ -688,146 +649,66 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
   },
 
-  /* Cloud Sync Banner */
-  cloudBanner: {
-    backgroundColor: TC.accentLight,
-    borderRadius: 18,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+  /* Header Status Action Icons (Cloud & Bluetooth) */
+  headerStatusIcons: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    gap: 8,
+    paddingBottom: 2,
+  },
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  headerIconBtnConnected: {
+    backgroundColor: TC.card,
+    borderColor: TC.accent + "35",
+  },
+  headerIconBtnWarning: {
+    backgroundColor: TC.card,
     borderColor: TC.inputBorder,
-    borderCurve: "continuous" as any,
   },
-  cloudIconBox: {
-    backgroundColor: TC.card,
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
+  headerIconBtnAlert: {
+    backgroundColor: TC.vitalHeart + "12",
+    borderColor: TC.vitalHeart + "40",
   },
-  bannerTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: TC.textDark,
+  headerBadgePending: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#F59E0B",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
   },
-  bannerSub: {
-    fontSize: 11,
-    color: TC.textBody,
-    marginTop: 1,
-  },
-  bannerActionBtn: {
-    backgroundColor: TC.card,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: TC.accent + "30",
-  },
-  bannerActionText: {
-    color: TC.accent,
-    fontWeight: "700",
-    fontSize: 12,
-  },
-
-  /* Bluetooth Banners */
-  bleBannerDisconnected: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: TC.vitalHeart + "08",
-    borderRadius: 18,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: TC.vitalHeart + "20",
-    borderCurve: "continuous" as any,
-  },
-  bleIconBoxDisconnected: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
+  headerBadgePendingAlert: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: TC.vitalHeart,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-    borderCurve: "continuous" as any,
-  },
-  bleBannerConnected: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: TC.accentLight,
-    borderRadius: 18,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: TC.accent + "30",
-    borderCurve: "continuous" as any,
-  },
-  bleIconBoxConnected: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: TC.accent + "15",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-    borderCurve: "continuous" as any,
-  },
-  bleTextCol: {
-    flex: 1,
-  },
-  bleTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: TC.vitalHeart,
-    letterSpacing: -0.2,
-    marginBottom: 1,
-  },
-  bleTitleConnected: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: TC.accent,
-    letterSpacing: -0.2,
-    marginBottom: 1,
-  },
-  bleSub: {
-    fontSize: 11,
-    color: TC.textBody,
-    fontWeight: "500",
-  },
-  bleBtn: {
-    backgroundColor: TC.vitalHeart,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-  },
-  bleBtnText: {
-    color: "#FFF",
-    fontWeight: "700",
-    fontSize: 12,
-  },
-  bleBtnOutline: {
-    backgroundColor: TC.card,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: TC.accent + "30",
-  },
-  bleBtnOutlineText: {
-    color: TC.accent,
-    fontWeight: "700",
-    fontSize: 12,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
   },
 
   mainCardContainer: {
-    marginVertical: 4,
+    marginTop: 0,
+    marginBottom: 4,
+    zIndex: 1,
   },
 
   /* Section */

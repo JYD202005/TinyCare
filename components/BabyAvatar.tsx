@@ -90,6 +90,26 @@ export const AVATAR_MAP: Record<string, ImageSourcePropType> = {
 };
 
 /**
+ * Determina si el bebé es niño o niña según su avatar o campo sexo/género.
+ */
+export function getBabyGender(
+  avatarKey?: string | null,
+  gender?: string | null,
+): "boy" | "girl" {
+  const isGirl =
+    gender?.toLowerCase().includes("fem") ||
+    gender?.toLowerCase().includes("niña") ||
+    gender?.toLowerCase().includes("girl") ||
+    avatarKey?.startsWith("g-") ||
+    avatarKey === "👧" ||
+    avatarKey === "🎀" ||
+    avatarKey === "🌸" ||
+    avatarKey === "🦄";
+
+  return isGirl ? "girl" : "boy";
+}
+
+/**
  * Obtiene la imagen adecuada para un bebé a partir de su avatarKey o inferido por nombre/género.
  */
 export function getBabyAvatarSource(
@@ -101,14 +121,7 @@ export function getBabyAvatarSource(
     return AVATAR_MAP[avatarKey];
   }
 
-  const isGirl =
-    gender?.toLowerCase().includes("fem") ||
-    gender?.toLowerCase().includes("niña") ||
-    avatarKey?.startsWith("g-") ||
-    avatarKey === "👧" ||
-    avatarKey === "🎀" ||
-    avatarKey === "🌸" ||
-    avatarKey === "🦄";
+  const isGirl = getBabyGender(avatarKey, gender) === "girl";
 
   if (isGirl) {
     return AVATAR_MAP["g-bun"];
