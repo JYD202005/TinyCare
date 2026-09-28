@@ -124,19 +124,19 @@ export const TC = {
   grayBorderLight: "#F5F5F8",
 
   // ── 👶 Perfiles de Bebé (Colores asignados) ──────────────────────────────
-  /** Azul bajito activo (niño) — tono del pañal en logo TinyCare Sense */
-  babyBoyActive: "#54A0E8",
-  /** Azul apagado inactivo (niño) — viñeta inactiva */
-  babyBoyInactive: "#B8D4EB",
-  /** Borde para viñeta niño inactiva */
-  babyBoyBorder: "#95BEDE",
+  /** Azul activo (niño) — vibrante, nítido y luminoso */
+  babyBoyActive: "#3B82F6",
+  /** Azul inactivo (niño) — claramente azul visible en tono pastel */
+  babyBoyInactive: "#93C5FD",
+  /** Borde para viñeta niño */
+  babyBoyBorder: "#60A5FA",
 
-  /** Rosita activo (niña) — tono del corazón en logo TinyCare Sense */
+  /** Rosita activo (niña) — vibrante, nítido y luminoso */
   babyGirlActive: "#FB7185",
-  /** Rosa apagado inactivo (niña) — viñeta inactiva */
-  babyGirlInactive: "#ECC0CB",
-  /** Borde para viñeta niña inactiva */
-  babyGirlBorder: "#DC9FA9",
+  /** Rosa inactivo (niña) — claramente rosa visible en tono pastel */
+  babyGirlInactive: "#FDA4AF",
+  /** Borde para viñeta niña */
+  babyGirlBorder: "#F43F5E",
 
   // ── 🧭 Navegación ─────────────────────────────────────────────────────────
   /** Fondo de barra de navegación */

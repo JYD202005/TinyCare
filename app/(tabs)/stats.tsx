@@ -3,31 +3,32 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Animated,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
-  Circle,
-  Defs,
-  LinearGradient,
-  Path,
-  Stop,
+    Circle,
+    Defs,
+    LinearGradient,
+    Path,
+    Stop,
 } from "react-native-svg";
 import { BabyAvatar } from "../../components/BabyAvatar";
+import { PediatriciansMapSection } from "../../components/PediatriciansMapSection";
 import {
-  getScreenTopPadding,
-  SharedStyles,
-  Typography,
+    getScreenTopPadding,
+    SharedStyles,
+    Typography,
 } from "../../components/styles";
 import { TC } from "../../components/theme";
 import { useToast } from "../../components/Toast";
@@ -787,14 +788,23 @@ const SendToPediatrician = ({
   );
 };
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { getBabyGender } from "../../components/BabyAvatar";
 import { database } from "../../src/database";
-import { Dispositivo, Perfil } from "../../src/database/models";
+import {
+    DatosPersonales,
+    Dispositivo,
+    Perfil,
+} from "../../src/database/models";
 import { useTelemetryStats } from "../../src/hooks/useTelemetryStats";
 import { subscribeToBiometrics } from "../../src/services/notifications/MonitoringService";
 
 export default function StatsScreen() {
   const { showToast, ToastComponent } = useToast();
+  const [activeStatsTab, setActiveStatsTab] = useState<"clinica" | "pediatras">(
+    "clinica",
+  );
   const [period, setPeriod] = useState<"24H" | "7D">("24H");
   const [selectedMetric, setSelectedMetric] = useState<any>(null);
   const [liveMetrics, setLiveMetrics] = useState(METRICS);
@@ -803,6 +813,7 @@ export default function StatsScreen() {
       id: string;
       name: string;
       avatar: string;
+      gender: "boy" | "girl";
       connected: boolean;
       deviceId: string | null;
     }[]
@@ -811,6 +822,7 @@ export default function StatsScreen() {
       id: "loading",
       name: "Cargando...",
       avatar: "b-bear",
+      gender: "boy",
       connected: false,
       deviceId: null,
     },
@@ -850,6 +862,8 @@ export default function StatsScreen() {
       const perfilesCollection = database.collections.get<Perfil>("perfiles");
       const dispositivosCollection =
         database.collections.get<Dispositivo>("dispositivos");
+      const datosPersonalesCollection =
+        database.collections.get<DatosPersonales>("datos_personales");
 
       const subscription = perfilesCollection
         .query()
@@ -857,26 +871,76 @@ export default function StatsScreen() {
         .subscribe(async (perfiles) => {
           if (perfiles.length > 0) {
             const allDevices = await dispositivosCollection.query().fetch();
+            const allDatosPersonales = await datosPersonalesCollection
+              .query()
+              .fetch();
+
             const loadedBabies = perfiles.map((p) => {
-              const hasDevice = allDevices.find((d) => d.idPerfil === p.id);
+              const hasDevice = allDevices.find(
+                (d) =>
+                  d.idPerfil === p.id || (d as any)._raw?.id_perfil === p.id,
+              );
+              const dp = allDatosPersonales.find(
+                (d) =>
+                  d.idPerfil === p.id || (d as any)._raw?.id_perfil === p.id,
+              );
+              const dpSexo = dp?.sexo || (dp as any)?._raw?.sexo;
+              const gender = getBabyGender(
+                p.avatar,
+                dpSexo,
+                p.nombreIdentificador,
+              );
+
               return {
                 id: p.id,
                 name: p.nombreIdentificador || "Bebé",
-                avatar: p.avatar || "b-bear",
+                avatar: p.avatar || (gender === "girl" ? "g-bun" : "b-bear"),
+                gender,
                 connected: hasDevice ? hasDevice.estado === "activo" : false,
                 deviceId: hasDevice ? hasDevice.identificadorHardware : null,
               };
             });
-            setBabies(loadedBabies);
-            setActiveBabyIndex((prev) =>
-              prev >= loadedBabies.length ? 0 : prev,
+
+            // Respetar orden guardado por el usuario
+            const storedOrderStr = await AsyncStorage.getItem(
+              "@baby_profiles_order",
             );
+            if (storedOrderStr) {
+              try {
+                const storedOrder = JSON.parse(storedOrderStr) as string[];
+                loadedBabies.sort((a, b) => {
+                  const idxA = storedOrder.indexOf(a.id);
+                  const idxB = storedOrder.indexOf(b.id);
+                  if (idxA === -1 && idxB === -1) return 0;
+                  if (idxA === -1) return 1;
+                  if (idxB === -1) return -1;
+                  return idxA - idxB;
+                });
+              } catch {
+                // ignorar
+              }
+            }
+
+            setBabies(loadedBabies);
+
+            // Mantener perfil seleccionado sincronizado con home.tsx
+            const storedActive = await AsyncStorage.getItem("@active_baby_id");
+            setActiveBabyIndex((prev) => {
+              if (storedActive) {
+                const foundIndex = loadedBabies.findIndex(
+                  (b) => b.id === storedActive,
+                );
+                if (foundIndex !== -1) return foundIndex;
+              }
+              return prev >= loadedBabies.length ? 0 : prev;
+            });
           } else {
             setBabies([
               {
                 id: "empty",
                 name: "Sin Perfil",
                 avatar: "b-bear",
+                gender: "boy",
                 connected: false,
                 deviceId: null,
               },
@@ -886,6 +950,14 @@ export default function StatsScreen() {
       return () => subscription.unsubscribe();
     }, []),
   );
+
+  const handleSelectBaby = (index: number) => {
+    setActiveBabyIndex(index);
+    const selected = babies[index];
+    if (selected?.id && selected.id !== "loading" && selected.id !== "empty") {
+      AsyncStorage.setItem("@active_baby_id", selected.id).catch(() => {});
+    }
+  };
 
   const [liveData, setLiveData] = useState<Record<string, any>>({});
 
@@ -1084,8 +1156,16 @@ export default function StatsScreen() {
       >
         <View style={SharedStyles.screenHeader}>
           <View>
-            <Text style={Typography.eyebrow}>EXPEDIENTE TELEMÉTRICO</Text>
-            <Text style={Typography.screenTitle}>Análisis Clínico</Text>
+            <Text style={Typography.eyebrow}>
+              {activeStatsTab === "clinica"
+                ? "EXPEDIENTE TELEMÉTRICO"
+                : "RED MÉDICA Y CONTACTO"}
+            </Text>
+            <Text style={Typography.screenTitle}>
+              {activeStatsTab === "clinica"
+                ? "Análisis Clínico"
+                : "Directorio Pediátrico"}
+            </Text>
           </View>
         </View>
 
@@ -1098,27 +1178,76 @@ export default function StatsScreen() {
           >
             {babies.map((b, index) => {
               const isActive = index === activeBabyIndex;
+              const isGirl = b.gender === "girl";
+              const activeBg = isGirl ? TC.babyGirlActive : TC.babyBoyActive;
+              const inactiveBg = isGirl
+                ? TC.babyGirlInactive
+                : TC.babyBoyInactive;
+              const activeBorder = isGirl
+                ? TC.babyGirlActive
+                : TC.babyBoyActive;
+              const inactiveBorder = isGirl
+                ? TC.babyGirlBorder
+                : TC.babyBoyBorder;
+
               return (
                 <TouchableOpacity
-                  key={index}
+                  key={b.id || index}
                   activeOpacity={0.8}
-                  onPress={() => setActiveBabyIndex(index)}
+                  onPress={() => handleSelectBaby(index)}
                   style={[
                     SharedStyles.profilePill,
-                    isActive && SharedStyles.profilePillActive,
+                    isActive
+                      ? {
+                          backgroundColor: activeBg,
+                          borderColor: activeBorder,
+                          shadowColor: activeBg,
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.28,
+                          shadowRadius: 10,
+                          elevation: 5,
+                        }
+                      : {
+                          backgroundColor: inactiveBg,
+                          borderColor: inactiveBorder,
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.05,
+                          shadowRadius: 4,
+                          elevation: 2,
+                        },
                   ]}
+                  accessibilityLabel={`Seleccionar perfil de ${b.name}`}
                 >
-                  <BabyAvatar
-                    avatar={b.avatar}
-                    name={b.name}
-                    size={36}
-                    containerStyle={{ marginRight: 8 }}
-                  />
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: "#FFFFFF",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 8,
+                      borderWidth: 1.5,
+                      borderColor: isActive
+                        ? "rgba(255, 255, 255, 0.9)"
+                        : inactiveBorder,
+                    }}
+                  >
+                    <BabyAvatar
+                      avatar={b.avatar}
+                      name={b.name}
+                      gender={b.gender}
+                      size={32}
+                    />
+                  </View>
                   <View style={SharedStyles.profileInfo}>
                     <Text
                       style={[
                         SharedStyles.profileName,
-                        isActive && SharedStyles.profileNameActive,
+                        isActive
+                          ? { color: "#FFFFFF", fontWeight: "800" }
+                          : { color: TC.textDark, fontWeight: "700" },
                       ]}
                     >
                       {b.name}
@@ -1135,57 +1264,167 @@ export default function StatsScreen() {
           </ScrollView>
         </View>
 
-        <View style={s.toggleRow}>
+        {/* ── Selector de Sub-pestañas: Expediente Clínico vs Pediatras ── */}
+        <View style={s.tabSwitcher}>
           <TouchableOpacity
-            style={[s.toggleBtn, period === "24H" && s.toggleBtnActive]}
-            onPress={() => setPeriod("24H")}
-            activeOpacity={0.7}
+            style={[s.tabItem, activeStatsTab === "clinica" && s.tabItemActive]}
+            onPress={() => setActiveStatsTab("clinica")}
+            activeOpacity={0.8}
           >
-            <Text
-              style={[s.toggleText, period === "24H" && s.toggleTextActive]}
-            >
-              Últimas 24H
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.toggleBtn, period === "7D" && s.toggleBtnActive]}
-            onPress={() => setPeriod("7D")}
-            activeOpacity={0.7}
-          >
-            <Text style={[s.toggleText, period === "7D" && s.toggleTextActive]}>
-              Últimos 7 Días
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={s.metricsGrid}>
-          {liveMetrics.map((m) => (
-            <MetricMiniCard
-              key={m.id}
-              metric={m}
-              period={period}
-              onPress={setSelectedMetric}
+            <Ionicons
+              name="pulse"
+              size={15}
+              color={activeStatsTab === "clinica" ? TC.accent : TC.textMuted}
             />
-          ))}
-        </View>
-
-        <View style={s.alertCard}>
-          <Ionicons name="shield-checkmark" size={24} color="#059669" />
-          <View style={{ flex: 1 }}>
-            <Text style={s.alertTitle}>Telemetría Estable</Text>
-            <Text style={s.alertDesc}>
-              Todos los biomarcadores se encuentran dentro de los parámetros
-              pediátricos seguros.
+            <Text
+              style={[
+                s.tabItemText,
+                activeStatsTab === "clinica" && s.tabItemTextActive,
+              ]}
+            >
+              Expediente Clínico
             </Text>
-          </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              s.tabItem,
+              activeStatsTab === "pediatras" && s.tabItemActive,
+            ]}
+            onPress={() => setActiveStatsTab("pediatras")}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="location-sharp"
+              size={15}
+              color={activeStatsTab === "pediatras" ? TC.accent : TC.textMuted}
+            />
+            <Text
+              style={[
+                s.tabItemText,
+                activeStatsTab === "pediatras" && s.tabItemTextActive,
+              ]}
+            >
+              Pediatras Cercanos
+            </Text>
+            <View
+              style={[
+                s.tabBadge,
+                activeStatsTab === "pediatras" && s.tabBadgeActive,
+              ]}
+            >
+              <Text
+                style={[
+                  s.tabBadgeText,
+                  activeStatsTab === "pediatras" && s.tabBadgeTextActive,
+                ]}
+              >
+                4
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
-        <SendToPediatrician
-          metrics={liveMetrics}
-          period={period}
-          patientName={activeBaby?.name}
-          showToast={showToast}
-        />
+        {activeStatsTab === "clinica" ? (
+          <>
+            <View style={s.toggleRow}>
+              <TouchableOpacity
+                style={[s.toggleBtn, period === "24H" && s.toggleBtnActive]}
+                onPress={() => setPeriod("24H")}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[s.toggleText, period === "24H" && s.toggleTextActive]}
+                >
+                  Últimas 24H
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.toggleBtn, period === "7D" && s.toggleBtnActive]}
+                onPress={() => setPeriod("7D")}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[s.toggleText, period === "7D" && s.toggleTextActive]}
+                >
+                  Últimos 7 Días
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.metricsGrid}>
+              {liveMetrics.map((m) => (
+                <MetricMiniCard
+                  key={m.id}
+                  metric={m}
+                  period={period}
+                  onPress={setSelectedMetric}
+                />
+              ))}
+            </View>
+
+            <View style={s.alertCard}>
+              <Ionicons name="shield-checkmark" size={24} color="#059669" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.alertTitle}>Telemetría Estable</Text>
+                <Text style={s.alertDesc}>
+                  Todos los biomarcadores se encuentran dentro de los parámetros
+                  pediátricos seguros.
+                </Text>
+              </View>
+            </View>
+
+            {/* ── Banner de Acceso Rápido a Pediatras ── */}
+            <TouchableOpacity
+              style={s.pediatriciansBanner}
+              onPress={() => setActiveStatsTab("pediatras")}
+              activeOpacity={0.85}
+            >
+              <View style={s.pediatriciansBannerIconBox}>
+                <Ionicons name="medical" size={20} color={TC.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    marginBottom: 2,
+                  }}
+                >
+                  <Text style={s.pediatriciansBannerTitle}>
+                    Directorio Pediátrico & Mapa
+                  </Text>
+                  <View style={s.liveDot} />
+                  <Text style={s.pediatriciansBannerBadge}>4 cercanos</Text>
+                </View>
+                <Text style={s.pediatriciansBannerDesc}>
+                  Consulta especialistas en el mapa y envía telemetría de{" "}
+                  {activeBaby?.name || "tu bebé"}.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={TC.accent} />
+            </TouchableOpacity>
+
+            {/* ── Descargar / Compartir Reporte PDF (¡Inmediatamente accesible!) ── */}
+            <SendToPediatrician
+              metrics={liveMetrics}
+              period={period}
+              patientName={activeBaby?.name}
+              showToast={showToast}
+            />
+          </>
+        ) : (
+          /* ── Espacio Propio y Dedicado para Pediatras ── */
+          <PediatriciansMapSection
+            patientName={activeBaby?.name}
+            patientGender={activeBaby?.gender}
+            period={period}
+            metrics={liveMetrics}
+            showToast={showToast}
+            onBack={() => setActiveStatsTab("clinica")}
+          />
+        )}
       </ScrollView>
 
       <ExpandedMetricModal
@@ -1325,6 +1564,109 @@ const s = StyleSheet.create({
     fontWeight: "400",
     color: "#047857",
     lineHeight: 20,
+  },
+
+  /* Sub-pestañas: Expediente vs Pediatras */
+  tabSwitcher: {
+    flexDirection: "row",
+    backgroundColor: TC.trackBg,
+    borderRadius: 16,
+    padding: 4,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: TC.inputBorder,
+  },
+  tabItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    gap: 6,
+  },
+  tabItemActive: {
+    backgroundColor: TC.card,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabItemText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: TC.textMuted,
+  },
+  tabItemTextActive: {
+    color: TC.textDark,
+  },
+  tabBadge: {
+    backgroundColor: TC.inputBorder,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  tabBadgeActive: {
+    backgroundColor: TC.accentLight,
+  },
+  tabBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: TC.textMuted,
+  },
+  tabBadgeTextActive: {
+    color: TC.accent,
+  },
+
+  /* Banner de Acceso Rápido a Pediatras */
+  pediatriciansBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: TC.card,
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: "rgba(20, 184, 166, 0.3)",
+    gap: 12,
+    shadowColor: TC.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  pediatriciansBannerIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: TC.accentLight,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(20, 184, 166, 0.2)",
+  },
+  pediatriciansBannerTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: TC.textDark,
+  },
+  pediatriciansBannerBadge: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: TC.accent,
+  },
+  pediatriciansBannerDesc: {
+    fontSize: 12,
+    color: TC.textMuted,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: TC.accent,
   },
 
   // Modal styles

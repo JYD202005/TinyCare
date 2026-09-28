@@ -236,9 +236,20 @@ export default function HomeScreen() {
               .fetch();
 
             const loadedBabies: BabyTabItem[] = perfiles.map((p) => {
-              const hasDevice = allDevices.find((d) => d.idPerfil === p.id);
-              const dp = allDatosPersonales.find((d) => d.idPerfil === p.id);
-              const gender = getBabyGender(p.avatar, dp?.sexo);
+              const hasDevice = allDevices.find(
+                (d) =>
+                  d.idPerfil === p.id || (d as any)._raw?.id_perfil === p.id,
+              );
+              const dp = allDatosPersonales.find(
+                (d) =>
+                  d.idPerfil === p.id || (d as any)._raw?.id_perfil === p.id,
+              );
+              const dpSexo = dp?.sexo || (dp as any)?._raw?.sexo;
+              const gender = getBabyGender(
+                p.avatar,
+                dpSexo,
+                p.nombreIdentificador,
+              );
               return {
                 id: p.id,
                 name: p.nombreIdentificador || "Bebé",

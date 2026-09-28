@@ -95,18 +95,109 @@ export const AVATAR_MAP: Record<string, ImageSourcePropType> = {
 export function getBabyGender(
   avatarKey?: string | null,
   gender?: string | null,
+  babyName?: string | null,
 ): "boy" | "girl" {
-  const isGirl =
-    gender?.toLowerCase().includes("fem") ||
-    gender?.toLowerCase().includes("niña") ||
-    gender?.toLowerCase().includes("girl") ||
-    avatarKey?.startsWith("g-") ||
-    avatarKey === "👧" ||
-    avatarKey === "🎀" ||
-    avatarKey === "🌸" ||
-    avatarKey === "🦄";
+  const g = gender?.toLowerCase().trim();
+  const a = avatarKey?.toLowerCase().trim();
+  const n = babyName?.toLowerCase().trim();
 
-  return isGirl ? "girl" : "boy";
+  // 1. Detección por avatar explícito (g- para niña, b- para niño)
+  if (a) {
+    if (
+      a.startsWith("g-") ||
+      a.startsWith("g_") ||
+      a.startsWith("girl") ||
+      a === "g" ||
+      a === "👧" ||
+      a === "🎀" ||
+      a === "🌸" ||
+      a === "🦄"
+    ) {
+      return "girl";
+    }
+    if (
+      a.startsWith("b-") ||
+      a.startsWith("b_") ||
+      a.startsWith("boy") ||
+      a === "b" ||
+      a === "👦" ||
+      a === "👶" ||
+      a === "🍼" ||
+      a === "🧸"
+    ) {
+      return "boy";
+    }
+  }
+
+  // 2. Detección por campo sexo/género
+  if (g) {
+    if (
+      g === "f" ||
+      g.startsWith("fem") ||
+      g.includes("niña") ||
+      g.includes("nina") ||
+      g.includes("girl") ||
+      g.includes("mujer") ||
+      g.includes("female")
+    ) {
+      return "girl";
+    }
+    if (
+      g === "m" ||
+      g.startsWith("masc") ||
+      g.includes("niño") ||
+      g.includes("nino") ||
+      g.includes("boy") ||
+      g.includes("hombre") ||
+      g.includes("male")
+    ) {
+      return "boy";
+    }
+  }
+
+  // 3. Detección por nombres comunes de niña
+  if (n) {
+    const commonGirlNames = [
+      "sofia",
+      "sofi",
+      "valentina",
+      "isabella",
+      "camila",
+      "valeria",
+      "mariana",
+      "maria",
+      "lucia",
+      "daniela",
+      "gabriela",
+      "victoria",
+      "martina",
+      "sara",
+      "emma",
+      "mia",
+      "catalina",
+      "elena",
+      "emilia",
+      "natalia",
+      "zoe",
+      "paula",
+      "abril",
+      "alma",
+      "luna",
+      "ana",
+      "andrea",
+      "luciana",
+      "carolina",
+      "renata",
+      "regina",
+      "vin",
+      "xanthe",
+    ];
+    if (commonGirlNames.some((gn) => n.includes(gn))) {
+      return "girl";
+    }
+  }
+
+  return "boy";
 }
 
 /**
@@ -121,7 +212,7 @@ export function getBabyAvatarSource(
     return AVATAR_MAP[avatarKey];
   }
 
-  const isGirl = getBabyGender(avatarKey, gender) === "girl";
+  const isGirl = getBabyGender(avatarKey, gender, babyName) === "girl";
 
   if (isGirl) {
     return AVATAR_MAP["g-bun"];
