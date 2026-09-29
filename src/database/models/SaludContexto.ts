@@ -1,4 +1,4 @@
-import { Model } from '@nozbe/watermelondb'
+﻿import { Model } from '@nozbe/watermelondb'
 import { field, date, text, field as numField } from '@nozbe/watermelondb/decorators'
 
 export default class SaludContexto extends Model {
@@ -15,7 +15,11 @@ export default class SaludContexto extends Model {
   @field('sospecha_cardiopatia') sospechaCardiopatia: boolean
   @numField('dias_de_vida') diasDeVida?: number
   @numField('edad_gestacional_semanas') edadGestacionalSemanas?: number
-  
+
+  @numField('peso_nacimiento_kg') pesoNacimientoKg?: number
+  @numField('spo2_basal') spo2Basal?: number
+  @field('usa_oxigeno_suplementario') usaOxigenoSuplementario?: boolean
+
   @field('tiene_alergias') tieneAlergias?: boolean
   @text('detalles_alergias') detallesAlergias?: string
   @field('tiene_complicaciones') tieneComplicaciones?: boolean

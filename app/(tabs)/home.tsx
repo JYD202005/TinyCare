@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -323,7 +322,7 @@ export default function HomeScreen() {
         selected.id !== "loading" &&
         selected.id !== "empty"
       ) {
-        AsyncStorage.setItem("@active_baby_id", selected.id).catch(() => {});
+        AsyncStorage.setItem("@active_baby_id", selected.id).catch(() => { });
       }
     },
     [activeBabyIndex, babies],
@@ -347,7 +346,7 @@ export default function HomeScreen() {
         .map((b) => b.id)
         .filter((id) => id !== "loading" && id !== "empty");
       AsyncStorage.setItem("@baby_profiles_order", JSON.stringify(ids)).catch(
-        () => {},
+        () => { },
       );
     },
     [activeBabyIndex, babies],
@@ -395,12 +394,12 @@ export default function HomeScreen() {
   const currentDeviceData =
     activeBaby?.name === "Sazed"
       ? {
-          heartRate: demoVitals.hr,
-          oxygenSaturation: demoVitals.spo2,
-          temperature: demoVitals.temp,
-          respiratoryRate: demoVitals.fr,
-          activity: demoVitals.activity,
-        }
+        heartRate: demoVitals.hr,
+        oxygenSaturation: demoVitals.spo2,
+        temperature: demoVitals.temp,
+        respiratoryRate: demoVitals.fr,
+        activity: demoVitals.activity,
+      }
       : activeBaby?.deviceId
         ? liveData[activeBaby.deviceId]
         : null;
@@ -437,47 +436,47 @@ export default function HomeScreen() {
   // Adapt Biometrics data to VitalConfig array
   const activeBabyVitals = currentDeviceData
     ? [
-        {
-          key: "heart" as VitalType,
-          label: "Ritmo Cardíaco",
-          value: `${currentDeviceData.heartRate}`,
-          unit: "LPM",
-          color: TC.vitalHeart,
-          colorDim: TC.vitalHeart + "30",
-          icon: "heart" as keyof typeof Ionicons.glyphMap,
-          progress: Math.min((currentDeviceData.heartRate - 60) / 80, 1),
-        },
-        {
-          key: "oxygen" as VitalType,
-          label: "Oxigenación",
-          value: `${currentDeviceData.oxygenSaturation}`,
-          unit: "%",
-          color: TC.vitalOxygen,
-          colorDim: TC.vitalOxygen + "30",
-          icon: "water" as keyof typeof Ionicons.glyphMap,
-          progress: currentDeviceData.oxygenSaturation / 100,
-        },
-        {
-          key: "temp" as VitalType,
-          label: "Temperatura",
-          value: `${currentDeviceData.temperature.toFixed(1)}`,
-          unit: "°C",
-          color: TC.vitalTemp,
-          colorDim: TC.vitalTemp + "30",
-          icon: "thermometer" as keyof typeof Ionicons.glyphMap,
-          progress: Math.min((currentDeviceData.temperature - 35) / 3, 1),
-        },
-        {
-          key: "activity" as VitalType,
-          label: "Postura",
-          value: `${currentDeviceData.activity}`,
-          unit: currentDeviceData.activity === "Normal" ? "" : "°",
-          color: TC.vitalActivity,
-          colorDim: TC.vitalActivity + "30",
-          icon: "fitness" as keyof typeof Ionicons.glyphMap,
-          progress: currentDeviceData.activity === "90" ? 1.0 : 0.5,
-        },
-      ]
+      {
+        key: "heart" as VitalType,
+        label: "Ritmo Cardíaco",
+        value: `${currentDeviceData.heartRate}`,
+        unit: "LPM",
+        color: TC.vitalHeart,
+        colorDim: TC.vitalHeart + "30",
+        icon: "heart" as keyof typeof Ionicons.glyphMap,
+        progress: Math.min((currentDeviceData.heartRate - 60) / 80, 1),
+      },
+      {
+        key: "oxygen" as VitalType,
+        label: "Oxigenación",
+        value: `${currentDeviceData.oxygenSaturation}`,
+        unit: "%",
+        color: TC.vitalOxygen,
+        colorDim: TC.vitalOxygen + "30",
+        icon: "water" as keyof typeof Ionicons.glyphMap,
+        progress: currentDeviceData.oxygenSaturation / 100,
+      },
+      {
+        key: "temp" as VitalType,
+        label: "Temperatura",
+        value: `${currentDeviceData.temperature.toFixed(1)}`,
+        unit: "°C",
+        color: TC.vitalTemp,
+        colorDim: TC.vitalTemp + "30",
+        icon: "thermometer" as keyof typeof Ionicons.glyphMap,
+        progress: Math.min((currentDeviceData.temperature - 35) / 3, 1),
+      },
+      {
+        key: "activity" as VitalType,
+        label: "Postura",
+        value: `${currentDeviceData.activity}`,
+        unit: currentDeviceData.activity === "Normal" ? "" : "°",
+        color: TC.vitalActivity,
+        colorDim: TC.vitalActivity + "30",
+        icon: "fitness" as keyof typeof Ionicons.glyphMap,
+        progress: currentDeviceData.activity === "90" ? 1.0 : 0.5,
+      },
+    ]
     : undefined;
 
   return (

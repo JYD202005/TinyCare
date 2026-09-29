@@ -2,8 +2,10 @@ import { Biometrics } from '../ble/bleTypes';
 import { database } from '../../database';
 import { Dispositivo, SaludContexto, AlertaMedica as AlertaMedicaModel, TelemetriaCruda } from '../../database/models';
 import { Q } from '@nozbe/watermelondb';
-import { evaluarLectura } from '../../utils/evaluadorMedico';
-import { LecturaSensor, PerfilSalud, EstadoActividad } from '../../types/medical';
+import { evaluarLectura, evaluarCrecimiento, MedicionCrecimiento as MedCrec, resolverEstado, AlertaExt, LecturaSensorExt, PerfilSaludExt } from '../../utils/evaluadorMedico';
+import { TABLAS_OMS } from '../../utils/tablasOMS';
+import { evaluarSenalSensor, evaluarLineaBase, evaluarFiebreSostenida, DiaTemp } from '../../utils/evaluadorComplementario';
+import { EstadoActividad } from '../../types/medical';
 import { updateForegroundNotification } from './ForegroundService';
 
 // Guardamos el último estado para no spamear la misma notificación
@@ -16,7 +18,7 @@ let lastStatus = {
 // Caché para no consultar la DB cada segundo
 let profileCache: Record<string, {
   perfilId: string;
-  contexto: PerfilSalud;
+  contexto: PerfilSaludExt;
   lastFetched: number;
 }> = {};
 
@@ -50,6 +52,8 @@ const getProfileForDevice = async (deviceId: string) => {
   if (dispositivos.length === 0) return null;
   const perfilId = dispositivos[0].idPerfil;
 
+  const dp = (await database.collections.get<any>('datos_personales')
+    .query(Q.where('id_perfil', perfilId)).fetch())[0];
   const contextos = await database.collections.get<SaludContexto>('salud_contexto')
     .query(Q.where('id_perfil', perfilId)).fetch();
 
@@ -65,12 +69,116 @@ const getProfileForDevice = async (deviceId: string) => {
       altoRiesgoSDR: contexto.altoRiesgoSdr,
       pesoKg: contexto.pesoKg,
       diasDeVida: contexto.diasDeVida,
-      edadGestacionalSemanas: contexto.edadGestacionalSemanas
+      edadGestacionalSemanas: contexto.edadGestacionalSemanas,
+      // La edad se calcula desde la fecha de nacimiento (no desde grupoEdad/diasDeVida guardados)
+      fechaNacimiento: dp?.fechaNacimiento,
+      sexo: dp?.sexo === 'Masculino' || dp?.sexo === 'Femenino' ? dp.sexo : undefined,
+      circuncidado: dp?.circuncidado ?? undefined,
+      pesoNacimientoKg: contexto.pesoNacimientoKg ?? undefined,
+      sospechaCardiopatia: contexto.sospechaCardiopatia,
+      spo2Basal: contexto.spo2Basal ?? undefined,
+      usaOxigenoSuplementario: contexto.usaOxigenoSuplementario ?? undefined,
     },
     lastFetched: now,
   };
   profileCache[deviceId] = profileData;
   return profileData;
+};
+
+// ─── Historial, señal y línea base ───────────────────────────────────────────
+const historyByDevice: Record<string, LecturaSensorExt[]> = {};
+const lastPacket: Record<string, { ms: number; estado: any; perfilId: string }> = {};
+const signalTimers: Record<string, ReturnType<typeof setInterval>> = {};
+const baseCache: Record<string, { at: number; alertas: AlertaExt[] }> = {};
+const batteryPct: Record<string, number | undefined> = {};
+
+const saveAlerts = async (perfilId: string, alertas: AlertaExt[], valor: string) => {
+  if (!alertas.length) return;
+  const { notifyEmergency, notifyWarning } = getNotify();
+  const now = Date.now();
+  const orden = { Critico: 0, Advertencia: 1, Info: 2 } as const;
+  for (const al of [...alertas].sort((a, b) => orden[a.nivel] - orden[b.nivel])) {
+    const key = `${perfilId}-${al.reglaId ?? al.tipo}`;
+    const cooldown = al.nivel === 'Critico' ? 15000 : 300000;
+    if (lastAlertTimestamp[key] && now - lastAlertTimestamp[key] <= cooldown) continue;
+    lastAlertTimestamp[key] = now;
+    try {
+      await database.write(async () => {
+        await database.collections.get<AlertaMedicaModel>('alertas_medicas').create(a => {
+          a.idPerfil = perfilId;
+          a.tipoAlerta = al.tipo;
+          a.nivel = al.nivel;
+          a.mensajeMedico = al.mensaje;
+          a.valorRegistrado = valor;
+          a.timestampEvento = now;
+          a.leida = false;
+          a.isSynced = false;
+        });
+      });
+    } catch (e) { console.warn('Error saving alert:', e); }
+    if (al.nivel === 'Critico') notifyEmergency('Alerta Médica Crítica', al.mensaje);
+    else if (al.nivel === 'Advertencia') notifyWarning('Atención Pediátrica', al.mensaje);
+  }
+};
+
+// Vigila que sigan llegando paquetes (arranca solo al primer paquete de cada dispositivo)
+const startSignalWatch = (deviceId: string) => {
+  if (signalTimers[deviceId]) return;
+  signalTimers[deviceId] = setInterval(() => {
+    const p = lastPacket[deviceId];
+    if (!p) return;
+    saveAlerts(p.perfilId, evaluarSenalSensor({ ultimoPaqueteMs: p.ms, estado: p.estado, bateriaPct: batteryPct[deviceId] }), 'sin señal');
+  }, 30000);
+};
+export const stopSignalWatch = (deviceId: string) => {
+  clearInterval(signalTimers[deviceId]);
+  delete signalTimers[deviceId];
+  delete lastPacket[deviceId];
+};
+
+// Crecimiento: se evalúa 1 vez al día por perfil con el historial de pesos (edad siempre desde fecha de nacimiento)
+const lastGrowthCheck: Record<string, number> = {};
+const checkGrowth = async (perfilId: string, perfil: PerfilSaludExt) => {
+  const now = Date.now();
+  if (now - (lastGrowthCheck[perfilId] ?? 0) < 86400000) return;
+  lastGrowthCheck[perfilId] = now;
+  const rows = await database.collections.get<any>('mediciones_crecimiento').query(Q.where('id_perfil', perfilId)).fetch();
+  const meds: MedCrec[] = rows.map((r: any) => ({ fecha: r.fechaMedicion, pesoKg: r.pesoKg, longitudCm: r.longitudCm ?? undefined }));
+  const alertas = evaluarCrecimiento(perfil, meds, { ahora: now, tablas: TABLAS_OMS }).filter(a => a.reglaId !== 'SIN_TABLAS');
+  await saveAlerts(perfilId, alertas, 'crecimiento');
+};
+
+// Fiebre sostenida: 1 vez al día, máxima temperatura válida por día LOCAL de los últimos 7 días
+const lastFeverCheck: Record<string, number> = {};
+const diaLocal = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const checkFeverDays = async (perfilId: string) => {
+  const now = Date.now();
+  if (now - (lastFeverCheck[perfilId] ?? 0) < 86400000) return;
+  lastFeverCheck[perfilId] = now;
+  const rows = await database.collections.get<TelemetriaCruda>('telemetria_cruda').query(
+    Q.where('id_perfil', perfilId), Q.where('timestamp_medicion', Q.gte(now - 7 * 86400000))).fetch();
+  const porDia: Record<string, number> = {};
+  for (const r of rows) {
+    if (r.temp < 34 || r.temp > 42) continue; // descarta lecturas imposibles (sensor suelto)
+    const d = diaLocal(r.timestampMedicion);
+    porDia[d] = Math.max(porDia[d] ?? 0, r.temp);
+  }
+  const dias: DiaTemp[] = Object.entries(porDia).map(([dia, tempMax]) => ({ dia, tempMax }));
+  await saveAlerts(perfilId, evaluarFiebreSostenida(dias), 'fiebre varios días');
+};
+
+// Línea base: lecturas dormidas de 7 días (se recalcula máx. cada 10 min)
+const getBaselineAlerts = async (perfilId: string, recientes: LecturaSensorExt[]) => {
+  const now = Date.now();
+  const c = baseCache[perfilId];
+  if (c && now - c.at < 600000) return c.alertas;
+  const rows = await database.collections.get<TelemetriaCruda>('telemetria_cruda').query(
+    Q.where('id_perfil', perfilId), Q.where('timestamp_medicion', Q.gte(now - 7 * 86400000)),
+    Q.where('actividad', 'Sueño')).fetch();
+  const ultimos7dias = rows.map(r => ({ fc: r.fc, fr: r.fr, spo2: r.spo2, temp: r.temp, actividad: 'Sueño' as EstadoActividad }));
+  const alertas = evaluarLineaBase({ ultimos7dias, recientes });
+  baseCache[perfilId] = { at: now, alertas };
+  return alertas;
 };
 
 // ─── Evaluación clínica de signos vitales ─────────────────────────────────────
@@ -79,7 +187,7 @@ export const evaluateBiometrics = async (data: Biometrics, deviceId?: string) =>
   const { notifyEmergency, notifyWarning } = getNotify();
   const now = Date.now();
 
-  let perfilContexto: PerfilSalud | null = null;
+  let perfilContexto: PerfilSaludExt | null = null;
   let perfilId = '';
 
   if (deviceId) {
@@ -101,15 +209,25 @@ export const evaluateBiometrics = async (data: Biometrics, deviceId?: string) =>
 
   // --- EVALUACIÓN MEDICA INTELIGENTE (Requiere Perfil) ---
   if (perfilContexto && perfilId) {
-    const lectura: LecturaSensor = {
+    const ex = (data as any).extra ?? {};
+    const lectura: LecturaSensorExt = {
       fc: data.heartRate,
-      fr: data.respiratoryRate, 
+      fr: data.respiratoryRate,
       spo2: data.oxygenSaturation,
       temp: data.temperature,
-      actividad: data.activity
+      actividad: data.activity,
+      ...ex,
     };
+    const hist = (historyByDevice[deviceId!] ??= []);
+    lastPacket[deviceId!] = { ms: now, estado: resolverEstado(lectura), perfilId };
+    batteryPct[deviceId!] = (data as any).battery ?? batteryPct[deviceId!];
+    startSignalWatch(deviceId!);
+    checkGrowth(perfilId, perfilContexto).catch(() => {});
+    checkFeverDays(perfilId).catch(() => {});
 
-    const resultado = evaluarLectura(lectura, perfilContexto);
+    const resultado = evaluarLectura(lectura, perfilContexto, { ahora: now, historial: hist });
+    hist.push(lectura);
+    if (hist.length > 10) hist.shift();
     
     // Inserción en Telemetria Cruda cada 60s o de inmediato si hay anomalía
     const shouldInsertTelemetry = resultado.esAnomalia || (now - lastTelemetryInsert > 60000);
@@ -135,39 +253,10 @@ export const evaluateBiometrics = async (data: Biometrics, deviceId?: string) =>
       }
     }
 
-    if (resultado.alertas.length > 0) {
-      const highestAlert = resultado.alertas.sort((a, b) => (a.nivel === 'Critico' ? -1 : 1))[0];
-      const alertKey = `${perfilId}-${highestAlert.tipo}`;
-      
-      // Prevenir SPAM: alertas normales cada 5 mins, críticas cada 15 segundos para insistir
-      const cooldown = highestAlert.nivel === 'Critico' ? 15000 : 300000;
-      if (!lastAlertTimestamp[alertKey] || (now - lastAlertTimestamp[alertKey] > cooldown)) {
-        lastAlertTimestamp[alertKey] = now;
-        
-        try {
-          await database.write(async () => {
-            await database.collections.get<AlertaMedicaModel>('alertas_medicas').create(a => {
-              a.idPerfil = perfilId;
-              a.tipoAlerta = highestAlert.tipo;
-              a.nivel = highestAlert.nivel;
-              a.mensajeMedico = highestAlert.mensaje;
-              a.valorRegistrado = `FC:${lectura.fc} SpO2:${lectura.spo2} T:${lectura.temp}`;
-              a.timestampEvento = now;
-              a.leida = false;
-              a.isSynced = false;
-            });
-          });
-        } catch (e) {
-          console.warn('Error saving alert:', e);
-        }
-
-        if (highestAlert.nivel === 'Critico') {
-           notifyEmergency('Alerta Médica Crítica', highestAlert.mensaje);
-        } else if (highestAlert.nivel === 'Advertencia') {
-           notifyWarning('Atención Pediátrica', highestAlert.mensaje);
-        }
-      }
-    }
+    const valor = `FC:${lectura.fc} SpO2:${lectura.spo2} T:${lectura.temp}`;
+    let alertas: AlertaExt[] = resultado.alertas;
+    try { alertas = alertas.concat(await getBaselineAlerts(perfilId, [...hist])); } catch (e) { /* sin base aún */ }
+    await saveAlerts(perfilId, alertas, valor);
   } else {
     // --- EVALUACIÓN FALLBACK (Sin Perfil / Sin Dispositivo ID) ---
     const { oxygenSaturation: spo2, heartRate: hr, temperature: temp } = data;

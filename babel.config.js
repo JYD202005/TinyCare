@@ -3,13 +3,7 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      ['@babel/plugin-proposal-decorators', { legacy: true }],
-    ],
-    overrides: [
-      {
-        exclude: /node_modules/,
-        plugins: [['@babel/plugin-proposal-class-properties', { loose: true }]],
-      },
+      ['@babel/plugin-proposal-decorators', { version: 'legacy' }],
     ],
   };
 };

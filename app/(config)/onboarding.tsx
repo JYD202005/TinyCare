@@ -23,19 +23,151 @@ import PillInput from "@/components/PillInput";
 import { TC } from "@/components/theme";
 import { useToast } from "@/components/Toast";
 import { notifyCommon } from "@/src/services/notifications/NotificationService";
+import { grupoDesdeDias } from "@/src/utils/evaluadorMedico";
+
+type Sexo = "" | "Femenino" | "Masculino";
+type Circuncision = "si" | "no" | "nose";
 
 interface Bebe {
   id: number;
   nombre: string;
   avatar: string;
+  sexo: Sexo;
+  circuncidado: Circuncision;
   fechaNacimiento: string;
   peso: string;
+  pesoNacimiento: string;
   esPrematuro: boolean;
   semanasGestacion: string;
+  usaOxigeno: boolean;
   riesgoSDR: boolean;
+  sospechaCardiopatia: boolean;
+  spo2Basal: string;
   tieneComplicaciones: boolean;
   detallesComplicaciones: string;
   mostrarAvanzado?: boolean;
+}
+
+const nuevoBebe = (id: number, avatar: string): Bebe => ({
+  id,
+  nombre: "",
+  avatar,
+  sexo: "",
+  circuncidado: "nose",
+  fechaNacimiento: "",
+  peso: "",
+  pesoNacimiento: "",
+  esPrematuro: false,
+  semanasGestacion: "",
+  usaOxigeno: false,
+  riesgoSDR: false,
+  sospechaCardiopatia: false,
+  spo2Basal: "",
+  tieneComplicaciones: false,
+  detallesComplicaciones: "",
+  mostrarAvanzado: false,
+});
+
+const MS_DIA = 86_400_000;
+const LIMITE_EDAD_DIAS = 730; // alcance de la app: 0-24 meses
+const PESO_MIN = 0.4;         // mismo rango plausible que usa el evaluador
+const PESO_MAX = 20;
+const PESO_NAC_MAX = 6.5;
+const PESO_NAC_OBLIGATORIO_HASTA_DIAS = 60; // las reglas de pérdida/recuperación de peso dependen de él
+
+/** Acepta "3,4" y "3.4" (el teclado numérico en español suele dar coma). */
+const aNumero = (t: string) => parseFloat(t.trim().replace(",", "."));
+
+/** dd/mm/aaaa → Date, o null si es inválida (rechaza 31/02, etc.). */
+const parseFecha = (t: string): Date | null => {
+  const p = t.split("/");
+  if (p.length !== 3) return null;
+  const [d, m, y] = p.map(Number);
+  const f = new Date(y, m - 1, d);
+  if (
+    isNaN(f.getTime()) ||
+    f.getFullYear() !== y ||
+    f.getMonth() !== m - 1 ||
+    f.getDate() !== d
+  )
+    return null;
+  return f;
+};
+
+const edadEnDias = (t: string): number | null => {
+  const f = parseFecha(t);
+  return f ? Math.floor((Date.now() - f.getTime()) / MS_DIA) : null;
+};
+
+/** Devuelve el mensaje de error del primer dato inválido, o null si todo está bien. */
+function validarBebe(b: Bebe, i: number): string | null {
+  const n = b.nombre.trim() || `bebé ${i + 1}`;
+  if (!b.nombre.trim()) return `Ingresa el nombre del bebé ${i + 1}.`;
+  if (!b.sexo) return `Indica el sexo de ${n}: se usa para comparar su crecimiento con la curva correcta.`;
+
+  if (!b.fechaNacimiento.trim()) return `Ingresa la fecha de nacimiento para ${n}.`;
+  const fecha = parseFecha(b.fechaNacimiento);
+  if (!fecha) return `La fecha de nacimiento de ${n} no es válida.`;
+  const dias = Math.floor((Date.now() - fecha.getTime()) / MS_DIA);
+  if (dias < 0) return `La fecha de nacimiento para ${n} no puede ser en el futuro.`;
+  if (dias > LIMITE_EDAD_DIAS)
+    return `TinyCare está diseñada para bebés de 0 a 24 meses; ${n} tiene más edad.`;
+
+  if (!b.peso.trim()) return `Ingresa el peso actual de ${n}.`;
+  const peso = aNumero(b.peso);
+  if (!(peso >= PESO_MIN && peso <= PESO_MAX))
+    return `El peso de ${n} debe estar entre ${PESO_MIN} y ${PESO_MAX} kg.`;
+
+  if (!b.pesoNacimiento.trim()) {
+    if (dias <= PESO_NAC_OBLIGATORIO_HASTA_DIAS)
+      return `Ingresa el peso al nacer de ${n}: se usa para vigilar la pérdida y recuperación de peso.`;
+  } else {
+    const pn = aNumero(b.pesoNacimiento);
+    if (!(pn >= PESO_MIN && pn <= PESO_NAC_MAX))
+      return `El peso al nacer de ${n} debe estar entre ${PESO_MIN} y ${PESO_NAC_MAX} kg.`;
+  }
+
+  if (b.esPrematuro) {
+    const sem = parseInt(b.semanasGestacion, 10);
+    if (!(sem >= 22 && sem <= 36))
+      return `Indica las semanas de gestación de ${n} (entre 22 y 36).`;
+  }
+  if (b.sospechaCardiopatia && b.spo2Basal.trim()) {
+    const sp = aNumero(b.spo2Basal);
+    if (!(sp >= 60 && sp <= 100))
+      return `La SpO2 basal de ${n} debe estar entre 60 y 100 %.`;
+  }
+  return null;
+}
+
+/** Selector de opciones tipo botones (una sola elección). */
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { label: string; value: T }[];
+  value: T | "";
+  onChange: (v: T) => void;
+}) {
+  return (
+    <View style={styles.segmentRow}>
+      {options.map((o) => {
+        const activo = o.value === value;
+        return (
+          <TouchableOpacity
+            key={o.value}
+            onPress={() => onChange(o.value)}
+            style={[styles.segmentBtn, activo && styles.segmentBtnActive]}
+          >
+            <Text style={[styles.segmentText, activo && styles.segmentTextActive]}>
+              {o.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 }
 
 const DEFAULT_AVATARS = [
@@ -52,21 +184,7 @@ export default function Onboarding() {
   const { showToast, ToastComponent } = useToast();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
-  const [bebes, setBebes] = useState<Bebe[]>([
-    {
-      id: 1,
-      nombre: "",
-      avatar: "b-bear",
-      fechaNacimiento: "",
-      peso: "",
-      esPrematuro: false,
-      semanasGestacion: "",
-      riesgoSDR: false,
-      tieneComplicaciones: false,
-      detallesComplicaciones: "",
-      mostrarAvanzado: false,
-    },
-  ]);
+  const [bebes, setBebes] = useState<Bebe[]>([nuevoBebe(1, "b-bear")]);
   const [showAvatarPickerId, setShowAvatarPickerId] = useState<number | null>(
     null,
   );
@@ -74,22 +192,7 @@ export default function Onboarding() {
 
   const agregarBebe = () => {
     const nextAvatar = DEFAULT_AVATARS[bebes.length % DEFAULT_AVATARS.length];
-    setBebes([
-      ...bebes,
-      {
-        id: Date.now(),
-        nombre: "",
-        avatar: nextAvatar,
-        fechaNacimiento: "",
-        peso: "",
-        esPrematuro: false,
-        semanasGestacion: "",
-        riesgoSDR: false,
-        tieneComplicaciones: false,
-        detallesComplicaciones: "",
-        mostrarAvanzado: false,
-      },
-    ]);
+    setBebes([...bebes, nuevoBebe(Date.now(), nextAvatar)]);
   };
 
   const quitarBebe = (id: number) => {
@@ -104,37 +207,10 @@ export default function Onboarding() {
 
   const guardarDatos = async () => {
     for (let i = 0; i < bebes.length; i++) {
-      const bebe = bebes[i];
-      if (!bebe.nombre.trim()) {
-        showToast("warning", `Ingresa el nombre del bebé ${i + 1}.`);
+      const error = validarBebe(bebes[i], i);
+      if (error) {
+        showToast("warning", error);
         return;
-      }
-      if (!bebe.fechaNacimiento.trim()) {
-        showToast(
-          "warning",
-          `Ingresa la fecha de nacimiento para ${bebe.nombre}.`,
-        );
-        return;
-      }
-      if (!bebe.peso.trim()) {
-        showToast("warning", `Ingresa el peso para ${bebe.nombre}.`);
-        return;
-      }
-
-      const parts = bebe.fechaNacimiento.split("/");
-      if (parts.length === 3) {
-        const dateObj = new Date(
-          Number(parts[2]),
-          Number(parts[1]) - 1,
-          Number(parts[0]),
-        );
-        if (dateObj > new Date()) {
-          showToast(
-            "warning",
-            `La fecha de nacimiento para ${bebe.nombre} no puede ser en el futuro.`,
-          );
-          return;
-        }
       }
     }
 
@@ -152,48 +228,68 @@ export default function Onboarding() {
             p.idUsuarioRemote = "local";
           });
 
-          let fechaParsed = new Date();
-          if (bebe.fechaNacimiento) {
-            const parts = bebe.fechaNacimiento.split("/");
-            if (parts.length === 3) {
-              fechaParsed = new Date(
-                Number(parts[2]),
-                Number(parts[1]) - 1,
-                Number(parts[0]),
-              );
-            }
-          }
+          const fechaParsed = parseFecha(bebe.fechaNacimiento) as Date; // ya validada
+          const peso = aNumero(bebe.peso);
+          const pesoNac = bebe.pesoNacimiento.trim()
+            ? aNumero(bebe.pesoNacimiento)
+            : null;
 
           await database.get("datos_personales").create((d: any) => {
             d.idPerfil = perfil.id;
             d.primerNombre = bebe.nombre.trim();
             d.apellidoPaterno = "";
-            d.sexo = "No Especificado";
+            d.sexo = bebe.sexo; // 'Femenino' | 'Masculino' (curva OMS por sexo)
             d.fechaNacimiento = fechaParsed.getTime();
+            // Solo aplica a varones (riesgo de infección urinaria con fiebre). null = no se sabe
+            d.circuncidado =
+              bebe.sexo === "Masculino" && bebe.circuncidado !== "nose"
+                ? bebe.circuncidado === "si"
+                : null;
           });
 
-          const now = new Date();
-          const diasDeVida = Math.floor(
-            (now.getTime() - fechaParsed.getTime()) / (1000 * 60 * 60 * 24),
+          const diasDeVida = Math.max(
+            0,
+            Math.floor((Date.now() - fechaParsed.getTime()) / MS_DIA),
           );
-          let grupoEdad = "Nino";
-          if (diasDeVida <= 28) grupoEdad = "Neonato";
-          else if (diasDeVida <= 365) grupoEdad = "Lactante";
+          // Campo legado: el evaluador recalcula la edad desde fecha_nacimiento.
+          // 'LactanteMayor' se guarda como 'Nino' mientras el schema no lo admita.
+          const g = grupoDesdeDias(diasDeVida);
+          const grupoEdad = g === "LactanteMayor" ? "Nino" : g;
 
           await database.get("salud_contexto").create((s: any) => {
             s.idPerfil = perfil.id;
-            s.pesoKg = parseFloat(bebe.peso) || null;
+            s.pesoKg = peso;
+            s.pesoNacimientoKg = pesoNac;
             s.esPrematuro = bebe.esPrematuro;
             s.altoRiesgoSdr = bebe.riesgoSDR;
-            s.sospechaCardiopatia = false;
+            s.sospechaCardiopatia = bebe.sospechaCardiopatia;
+            s.spo2Basal =
+              bebe.sospechaCardiopatia && bebe.spo2Basal.trim()
+                ? aNumero(bebe.spo2Basal)
+                : null;
+            // Los objetivos 85-90 % de prematuro aplican solo con oxígeno suplementario
+            s.usaOxigenoSuplementario = bebe.esPrematuro && bebe.usaOxigeno;
             s.grupoEdad = grupoEdad;
-            s.diasDeVida = diasDeVida >= 0 ? diasDeVida : 0;
+            s.diasDeVida = diasDeVida;
             s.edadGestacionalSemanas = bebe.esPrematuro
-              ? parseInt(bebe.semanasGestacion) || null
+              ? parseInt(bebe.semanasGestacion, 10)
               : null;
             s.tieneComplicaciones = bebe.tieneComplicaciones;
             s.detallesComplicaciones = bebe.detallesComplicaciones.trim();
           });
+
+          // Primer punto del historial de crecimiento (permite tendencia y Z-score después)
+          try {
+            await database.get("mediciones_crecimiento").create((m: any) => {
+              m.idPerfil = perfil.id;
+              m.fechaMedicion = Date.now();
+              m.pesoKg = peso;
+              m.fuente = "manual";
+              m.isSynced = false;
+            });
+          } catch (e) {
+            console.warn("[onboarding] mediciones_crecimiento no existe aún (falta schema v3)", e);
+          }
 
           await database.get("alertas_medicas").create((a: any) => {
             a.idPerfil = perfil.id;
@@ -366,6 +462,36 @@ export default function Onboarding() {
                     onChangeText={(t) => actualizarBebe(bebe.id, "nombre", t)}
                   />
 
+                  <View>
+                    <Text style={styles.fieldLabel}>SEXO</Text>
+                    <Segmented<"Femenino" | "Masculino">
+                      options={[
+                        { label: "Niña", value: "Femenino" },
+                        { label: "Niño", value: "Masculino" },
+                      ]}
+                      value={bebe.sexo}
+                      onChange={(v) => actualizarBebe(bebe.id, "sexo", v)}
+                    />
+                    <Text style={[styles.emojiLabelSubtitle, { marginTop: 6 }]}>
+                      Se usa para comparar su crecimiento con la curva correcta.
+                    </Text>
+                  </View>
+
+                  {bebe.sexo === "Masculino" && (
+                    <View>
+                      <Text style={styles.fieldLabel}>¿CIRCUNCIDADO? (OPCIONAL)</Text>
+                      <Segmented<Circuncision>
+                        options={[
+                          { label: "Sí", value: "si" },
+                          { label: "No", value: "no" },
+                          { label: "No sé", value: "nose" },
+                        ]}
+                        value={bebe.circuncidado}
+                        onChange={(v) => actualizarBebe(bebe.id, "circuncidado", v)}
+                      />
+                    </View>
+                  )}
+
                   <ComboDatePicker
                     value={bebe.fechaNacimiento}
                     onChange={(t) =>
@@ -379,6 +505,21 @@ export default function Onboarding() {
                     keyboardType="numeric"
                     value={bebe.peso}
                     onChangeText={(t) => actualizarBebe(bebe.id, "peso", t)}
+                  />
+
+                  <PillInput
+                    icon="scale-outline"
+                    placeholder={
+                      (edadEnDias(bebe.fechaNacimiento) ?? 0) <=
+                      PESO_NAC_OBLIGATORIO_HASTA_DIAS
+                        ? "Peso al nacer (kg)"
+                        : "Peso al nacer (kg) - opcional"
+                    }
+                    keyboardType="numeric"
+                    value={bebe.pesoNacimiento}
+                    onChangeText={(t) =>
+                      actualizarBebe(bebe.id, "pesoNacimiento", t)
+                    }
                   />
 
                   {/* Advanced Toggle */}
@@ -400,7 +541,7 @@ export default function Onboarding() {
                       color={TC.accent}
                     />
                     <Text style={styles.advancedText}>
-                      Condiciones Médicas (Opcional)
+                      Condiciones médicas (opcional)
                     </Text>
                   </TouchableOpacity>
 
@@ -434,6 +575,24 @@ export default function Onboarding() {
                         />
                       )}
 
+                      {bebe.esPrematuro && (
+                        <View style={styles.switchCardRow}>
+                          <Text style={styles.switchLabel}>
+                            ¿Usa oxígeno suplementario?
+                          </Text>
+                          <Switch
+                            value={bebe.usaOxigeno}
+                            onValueChange={(v) =>
+                              actualizarBebe(bebe.id, "usaOxigeno", v)
+                            }
+                            trackColor={{ true: TC.accent, false: "#CBD5E1" }}
+                            thumbColor={
+                              Platform.OS === "android" ? "#FFF" : undefined
+                            }
+                          />
+                        </View>
+                      )}
+
                       <View style={styles.switchCardRow}>
                         <Text style={styles.switchLabel}>
                           Riesgo de SDR respiratorio
@@ -449,6 +608,39 @@ export default function Onboarding() {
                           }
                         />
                       </View>
+
+                      <View style={styles.switchCardRow}>
+                        <Text style={styles.switchLabel}>
+                          Cardiopatía (sospecha o diagnóstico)
+                        </Text>
+                        <Switch
+                          value={bebe.sospechaCardiopatia}
+                          onValueChange={(v) =>
+                            actualizarBebe(bebe.id, "sospechaCardiopatia", v)
+                          }
+                          trackColor={{ true: TC.accent, false: "#CBD5E1" }}
+                          thumbColor={
+                            Platform.OS === "android" ? "#FFF" : undefined
+                          }
+                        />
+                      </View>
+
+                      {bebe.sospechaCardiopatia && (
+                        <View>
+                          <PillInput
+                            icon="pulse-outline"
+                            placeholder="SpO2 basal indicada por su médico (%)"
+                            keyboardType="numeric"
+                            value={bebe.spo2Basal}
+                            onChangeText={(t) =>
+                              actualizarBebe(bebe.id, "spo2Basal", t)
+                            }
+                          />
+                          <Text style={[styles.emojiLabelSubtitle, { marginTop: 6 }]}>
+                            Opcional. Si no la sabes, pídesela a su cardiólogo: sin ella se usa el umbral general (92 %).
+                          </Text>
+                        </View>
+                      )}
 
                       <View style={styles.switchCardRow}>
                         <Text style={styles.switchLabel}>
@@ -760,6 +952,38 @@ const styles = StyleSheet.create({
   emojiItemActive: {
     borderColor: TC.accent,
     backgroundColor: TC.accent + "10",
+  },
+  fieldLabel: {
+    fontSize: 11,
+    color: TC.textMuted,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  segmentRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 20,
+    alignItems: "center",
+    backgroundColor: TC.inputBg,
+    borderWidth: 1.5,
+    borderColor: TC.inputBorder,
+  },
+  segmentBtnActive: {
+    borderColor: TC.accent,
+    backgroundColor: TC.accent + "15",
+  },
+  segmentText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: TC.textBody,
+  },
+  segmentTextActive: {
+    color: TC.accent,
   },
   advancedToggle: {
     flexDirection: "row",

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb'
 
 export const babyMonitorSchema = appSchema({
-  version: 2,
+  version: 3,
   tables: [
     // --- 1. ESTRUCTURA PRINCIPAL ---
     tableSchema({
@@ -26,6 +26,7 @@ export const babyMonitorSchema = appSchema({
         { name: 'apellido_materno', type: 'string', isOptional: true },
         { name: 'sexo', type: 'string' }, // 'Femenino' | 'Masculino'
         { name: 'fecha_nacimiento', type: 'number' },
+        { name: 'circuncidado', type: 'boolean', isOptional: true },
         { name: 'deleted_at', type: 'number', isOptional: true },
       ]
     }),
@@ -45,6 +46,9 @@ export const babyMonitorSchema = appSchema({
         { name: 'sospecha_cardiopatia', type: 'boolean' },
         { name: 'dias_de_vida', type: 'number', isOptional: true },
         { name: 'edad_gestacional_semanas', type: 'number', isOptional: true },
+        { name: 'peso_nacimiento_kg', type: 'number', isOptional: true },
+        { name: 'spo2_basal', type: 'number', isOptional: true },
+        { name: 'usa_oxigeno_suplementario', type: 'boolean', isOptional: true },
         // Detalles de salud extra
         { name: 'tiene_alergias', type: 'boolean', isOptional: true },
         { name: 'detalles_alergias', type: 'string', isOptional: true },
@@ -134,6 +138,17 @@ export const babyMonitorSchema = appSchema({
         { name: 'fecha_cita', type: 'number', isIndexed: true },
         { name: 'notas', type: 'string', isOptional: true },
         { name: 'deleted_at', type: 'number', isOptional: true },
+      ]
+    }),
+    tableSchema({
+      name: 'mediciones_crecimiento',
+      columns: [
+        { name: 'id_perfil', type: 'string', isIndexed: true },
+        { name: 'fecha_medicion', type: 'number', isIndexed: true },
+        { name: 'peso_kg', type: 'number' },
+        { name: 'longitud_cm', type: 'number', isOptional: true },
+        { name: 'fuente', type: 'string', isOptional: true }, // 'manual' | ...
+        { name: 'is_synced', type: 'boolean' },
       ]
     }),
     // --- 6. DISPOSITIVOS Y SENSORES (ESP32 / Bluefruit) ---

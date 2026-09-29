@@ -1,4 +1,4 @@
-import { Model } from '@nozbe/watermelondb'
+﻿import { Model } from '@nozbe/watermelondb'
 import { field, date, text, field as numField } from '@nozbe/watermelondb/decorators'
 
 export default class TelemetriaResumen extends Model {

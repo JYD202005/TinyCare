@@ -1,34 +1,34 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Animated,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
-    Circle,
-    Defs,
-    LinearGradient,
-    Path,
-    Stop,
+  Circle,
+  Defs,
+  LinearGradient,
+  Path,
+  Stop,
 } from "react-native-svg";
 import { BabyAvatar } from "../../components/BabyAvatar";
 import { PediatriciansMapSection } from "../../components/PediatriciansMapSection";
 import {
-    getScreenTopPadding,
-    SharedStyles,
-    Typography,
+  getScreenTopPadding,
+  SharedStyles,
+  Typography,
 } from "../../components/styles";
 import { TC } from "../../components/theme";
 import { useToast } from "../../components/Toast";
@@ -585,16 +585,15 @@ const SendToPediatrician = ({
               </tbody>
             </table>
 
-            ${
-              message.trim()
-                ? `
+            ${message.trim()
+          ? `
               <div class="notes">
                 <h3 style="margin-top: 0; font-size: 14px; text-transform: uppercase;">Nota del Tutor / Observaciones:</h3>
                 <p style="margin: 0; font-size: 15px; line-height: 1.5;">${message.trim()}</p>
               </div>
             `
-                : ""
-            }
+          : ""
+        }
 
             <p style="font-size: 13px; color: #64748B; line-height: 1.6;">
               <strong>Nota Clínica:</strong> Este reporte es generado automáticamente a partir de los datos recopilados por los sensores wearables de TinyCare. 
@@ -789,13 +788,13 @@ const SendToPediatrician = ({
 };
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router";
 import { getBabyGender } from "../../components/BabyAvatar";
 import { database } from "../../src/database";
 import {
-    DatosPersonales,
-    Dispositivo,
-    Perfil,
+  DatosPersonales,
+  Dispositivo,
+  Perfil,
 } from "../../src/database/models";
 import { useTelemetryStats } from "../../src/hooks/useTelemetryStats";
 import { subscribeToBiometrics } from "../../src/services/notifications/MonitoringService";
@@ -955,7 +954,7 @@ export default function StatsScreen() {
     setActiveBabyIndex(index);
     const selected = babies[index];
     if (selected?.id && selected.id !== "loading" && selected.id !== "empty") {
-      AsyncStorage.setItem("@active_baby_id", selected.id).catch(() => {});
+      AsyncStorage.setItem("@active_baby_id", selected.id).catch(() => { });
     }
   };
 
@@ -977,11 +976,11 @@ export default function StatsScreen() {
           ? liveData[activeBaby.deviceId]
           : isSazed
             ? {
-                oxygenSaturation: demoVitals.spo2,
-                heartRate: demoVitals.hr,
-                temperature: demoVitals.temp,
-                activity: demoVitals.activity,
-              }
+              oxygenSaturation: demoVitals.spo2,
+              heartRate: demoVitals.hr,
+              temperature: demoVitals.temp,
+              activity: demoVitals.activity,
+            }
             : null;
 
         let value = m.value;
@@ -1199,23 +1198,23 @@ export default function StatsScreen() {
                     SharedStyles.profilePill,
                     isActive
                       ? {
-                          backgroundColor: activeBg,
-                          borderColor: activeBorder,
-                          shadowColor: activeBg,
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.28,
-                          shadowRadius: 10,
-                          elevation: 5,
-                        }
+                        backgroundColor: activeBg,
+                        borderColor: activeBorder,
+                        shadowColor: activeBg,
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.28,
+                        shadowRadius: 10,
+                        elevation: 5,
+                      }
                       : {
-                          backgroundColor: inactiveBg,
-                          borderColor: inactiveBorder,
-                          shadowColor: "#000",
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.05,
-                          shadowRadius: 4,
-                          elevation: 2,
-                        },
+                        backgroundColor: inactiveBg,
+                        borderColor: inactiveBorder,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.05,
+                        shadowRadius: 4,
+                        elevation: 2,
+                      },
                   ]}
                   accessibilityLabel={`Seleccionar perfil de ${b.name}`}
                 >

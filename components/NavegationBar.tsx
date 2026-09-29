@@ -1,32 +1,37 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useState } from "react";
+import { Tabs } from "expo-router";
+import { useEffect, useState, type ComponentProps } from "react";
 import {
-    StyleSheet,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    withTiming,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TC } from "./theme";
+
+// Tipo derivado de Tabs (expo-router), sin depender de @react-navigation
+type BottomTabBarProps = Parameters<
+  NonNullable<ComponentProps<typeof Tabs>["tabBar"]>
+>[0];
 
 const TAB_ICONS: {
   outline: keyof typeof Ionicons.glyphMap;
   filled: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { outline: "bag-outline", filled: "bag" },
-  { outline: "notifications-outline", filled: "notifications" },
-  { outline: "home-outline", filled: "home" },
-  { outline: "stats-chart-outline", filled: "stats-chart" },
-  { outline: "person-outline", filled: "person" },
-];
+    { outline: "bag-outline", filled: "bag" },
+    { outline: "notifications-outline", filled: "notifications" },
+    { outline: "home-outline", filled: "home" },
+    { outline: "stats-chart-outline", filled: "stats-chart" },
+    { outline: "person-outline", filled: "person" },
+  ];
 
 interface TabButtonProps {
   isActive: boolean;

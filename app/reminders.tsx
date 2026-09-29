@@ -1,20 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Q } from "@nozbe/watermelondb";
-import { useFocusEffect } from "@react-navigation/native";
-import { router } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    FlatList,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BabyAvatar } from "../components/BabyAvatar";
@@ -22,13 +21,13 @@ import { TC } from "../components/theme";
 import { useToast } from "../components/Toast";
 import { database } from "../src/database";
 import {
-    AlertaMedica,
-    CitaPersonalizada,
-    Perfil,
+  AlertaMedica,
+  CitaPersonalizada,
+  Perfil,
 } from "../src/database/models";
 import {
-    cancelReminder,
-    scheduleReminder,
+  cancelReminder,
+  scheduleReminder,
 } from "../src/services/notifications/NotificationService";
 const MONTHS = [
   "Enero",

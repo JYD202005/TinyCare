@@ -1,20 +1,9 @@
-/**
- * src/database/index.ts  —  Adaptador nativo (iOS / Android)
- *
- * Estrategia de detección en tiempo de ejecución:
- *   - Dev client (EAS build) con WatermelonDB nativo → SQLiteAdapter (persistente)
- *   - Expo Go / entorno sin módulo nativo         → LokiJSAdapter  (en memoria)
- *
- * Así la app funciona con `npx expo start` + Expo Go para desarrollo rápido,
- * y con el build de EAS para persistencia real en SQLite.
- */
-
 import { Database } from '@nozbe/watermelondb'
 import { NativeModules } from 'react-native'
 
-import { babyMonitorSchema } from './schema'
-import { models } from './models'
 import migrations from './migrations'
+import { models } from './models'
+import { babyMonitorSchema } from './schema'
 
 // WMDatabaseBridge solo existe cuando el módulo nativo fue compilado
 // (dev client via EAS, o producción). En Expo Go NO está disponible.

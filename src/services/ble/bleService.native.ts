@@ -1,7 +1,7 @@
 import { BleManager, Device, State, BleError } from 'react-native-ble-plx';
 import { Buffer } from 'buffer';
 import { BleAdapter, BleDevice, Biometrics, SENSOR_UUIDS } from './bleTypes';
-import { evaluateBiometrics, notifyHardwareStatus } from '../notifications/MonitoringService';
+import { evaluateBiometrics, notifyHardwareStatus, stopSignalWatch } from '../notifications/MonitoringService';
 import { startForegroundMonitoring, stopForegroundMonitoring } from '../notifications/ForegroundService';
 
 // ---------------------------------------------------------------------------
@@ -82,13 +82,27 @@ const parseESP32Payload = (base64Value: string): Biometrics | null => {
     const text = buffer.toString('utf-8');
     const json = JSON.parse(text);
 
+    // Campos opcionales que el firmware puede enviar (si no llegan, quedan undefined)
+    const extra = {
+      timestamp: Date.now(),
+      // Solo se marca como medida si el firmware manda `rr` (FR real). Si no, FR = bpm/4 (estimada) y sus alertas quedan apagadas.
+      frMedida: typeof json.rr === 'number' && json.rr > 0,
+      estadoSueno: json.sleep === true ? 'dormido' : json.sleep === false ? 'despierto' : undefined,
+      calidadSenal: json.quality,
+      movimientoFuerte: json.motion === true ? true : undefined,
+      sitioTemperatura: json.tempSite,
+      posicion: json.posture,
+      pausaRespiratoriaSeg: typeof json.apnea === 'number' ? json.apnea : undefined,
+    };
     return {
+      extra,
+      battery: json.battery,
       heartRate: json.bpm ?? 0,
-      respiratoryRate: json.bpm ? Math.round(json.bpm / 4) : 0,
+      respiratoryRate: typeof json.rr === 'number' && json.rr > 0 ? Math.round(json.rr) : json.bpm ? Math.round(json.bpm / 4) : 0,
       oxygenSaturation: json.spo2 ?? 0,
       temperature: json.temp ?? 0,
       activity: (json.activity as any) || 'Reposo',
-    };
+    } as Biometrics;
   } catch (e) {
     console.warn('[BLE] Error parseando payload del ESP32:', e);
     return null;
@@ -126,6 +140,7 @@ const createBleDevice = (device: Device): BleDevice => {
       } catch (_) {
         // Ignorar si ya estaba desconectado
       }
+      stopSignalWatch(device.id); // desconexión deliberada: no alertar "sin señal"
       notifyHardwareStatus('disconnected');
       stopForegroundMonitoring();
     },

@@ -1,22 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import { router } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BabyAvatar } from "../../components/BabyAvatar";
 import {
-    getScreenTopPadding,
-    SharedStyles,
-    Typography,
+  getScreenTopPadding,
+  SharedStyles,
+  Typography,
 } from "../../components/styles";
 import { TC } from "../../components/theme";
 import { useToast } from "../../components/Toast";
@@ -370,6 +369,24 @@ export default function ProfileScreen() {
               label="Invitar Cuidador"
               sublabel="Compartir perfil por correo"
               onPress={() => router.push("/invite-caregiver")}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="scale"
+              iconColor="#10B981"
+              iconBg="#ECFDF5"
+              label="Registrar peso"
+              sublabel="Seguimiento de crecimiento"
+              onPress={() => router.push("/register-weight")}
+            />
+            <View style={styles.divider} />
+            <SettingRow
+              icon="clipboard"
+              iconColor="#F59E0B"
+              iconBg="#FEF9EB"
+              label="¿Cómo lo ves?"
+              sublabel="Reporta síntomas que el sensor no ve"
+              onPress={() => router.push("/caregiver-report")}
             />
 
             {/* Cuidadores — solo mostrar si hay alguno registrado */}
